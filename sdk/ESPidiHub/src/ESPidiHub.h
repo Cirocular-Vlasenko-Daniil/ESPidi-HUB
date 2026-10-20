@@ -4,6 +4,7 @@
 //   ESPIDI_FIRMWARE("redsea", "RED SEA", "1.1.0", "Daniil Vlasenko");
 //
 // Header-only. Rules: docs/FIRMWARE_GUIDE.md (people), AGENTS.md (AI agents).
+// Covers (the picture the HUB shows at start): sdk/ESPidiHub/COVERS.md.
 #pragma once
 
 #include <Arduino.h>
@@ -122,9 +123,10 @@ inline String dataDir(const char *id) {
   extern "C" __attribute__((used, retain)) const espidi::FirmwareDescriptor         \
       espidi_firmware_descriptor = {"ESPIDI-FW-1", id, name, version, author}
 
-// Optional, once per sketch: the 256 bytes of a 64x32 cover. Generate them from a PNG:
-//   python3 tools/espidi_hub.py cover my-cover.png
-// More than 256 bytes is a compile error.
+// Optional, once per sketch: the 256 bytes of a 64x32 cover — see COVERS.md. Don't type them:
+// in an ESPidi-ready repository cover.h is generated from the cover named in espidi.json
+//   python3 tools/espidi_hub.py repo . --sync-cover
+// (or: python3 tools/espidi_hub.py cover my-cover.png > cover.h). More than 256 bytes is a compile error.
 #define ESPIDI_COVER(...)                                                            \
   extern "C" __attribute__((used, retain)) const espidi::Cover                      \
       espidi_firmware_cover = {"ESPIDI-CV-1", {__VA_ARGS__}}

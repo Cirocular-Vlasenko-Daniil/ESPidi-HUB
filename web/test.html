@@ -15,6 +15,7 @@
 <pre id="out">running…</pre>
 <script type="module">
 import * as E from "./espidi.js";
+import * as G from "./github.js";
 
 const out = document.getElementById("out");
 const lines = [];
@@ -120,6 +121,18 @@ try {
   check("fitCover: 3x1 becomes a 64x21 band, white | black | transparent",
     [E.coverPixel(fitted, 10, 15), E.coverPixel(fitted, 31, 15), E.coverPixel(fitted, 52, 15), E.coverPixel(fitted, 10, 2)],
     [true, false, false, false]);
+
+  for (const c of v.specs) {
+    let got;
+    try {
+      const sp = G.parseSpec(c.text);
+      got = { spec: sp, formatted: G.formatSpec(sp) };
+    } catch (e) {
+      got = { spec: null, code: e.code };
+    }
+    check(`repo link ${JSON.stringify(c.text)}`, got, c.spec ? { spec: c.spec, formatted: c.formatted } : { spec: null, code: "gh_spec" });
+  }
+  for (const c of v.manifests) check(`espidi.json ${JSON.stringify(c.manifest)}`, E.validateManifest(c.manifest), c.codes);
 
   // planWrites: what gets written where (no Python counterpart — expected values by hand).
   const img = (n) => ({ kind: "image", data: new Uint8Array(n).fill(1), meta: { id: "x", name: "X", version: "1", author: "" } });

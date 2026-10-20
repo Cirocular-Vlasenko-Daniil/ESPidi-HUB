@@ -134,6 +134,15 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); pa
 }
 .tag { font-family: var(--font); font-size: 0.8em; border: 1px solid currentColor; padding: 0 4px; margin-left: 8px; text-transform: uppercase; }
 
+.gh { display: flex; gap: 6px; }
+.gh input { flex: 1; min-width: 0; border: var(--line) solid var(--fg); background: var(--bg); padding: 4px 8px; }
+.gh button, .recent button { border: var(--line) solid var(--fg); background: none; padding: 2px 10px; cursor: pointer; text-transform: uppercase; }
+.gh button:not(:disabled):hover, .recent button:hover { background: var(--fg); color: var(--bg); }
+.recent { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 0.85em; }
+.recent button { text-transform: none; padding: 0 6px; overflow-wrap: anywhere; text-align: left; }
+.repo-card { cursor: default; }
+.repo-card a { overflow-wrap: anywhere; }
+
 .drop { display: block; border: var(--line) dashed var(--fg); padding: 18px 12px; text-align: center; cursor: pointer; }
 .drop.over { background: var(--fg); color: var(--bg); }
 .drop input { display: none; }

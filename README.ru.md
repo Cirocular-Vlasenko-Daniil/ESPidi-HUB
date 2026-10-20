@@ -25,7 +25,7 @@ English version: [README.md](README.md).
 
 ## Сборщик (сайт)
 
-**[cirocular-vlasenko-daniil.github.io/ESPidi-HUB](https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/)** — выберите прошивку для каждого слота из каталога или загрузите свой `.bin`, задайте обложку (родную или любую картинку — 64×32 и кратные идут пиксель в пиксель, остальное уменьшается с дизерингом), посмотрите, как поделится память и что покажет HUB, а затем:
+**[cirocular-vlasenko-daniil.github.io/ESPidi-HUB](https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/)** — выберите прошивку для каждого слота из каталога, **вставьте GitHub-репозиторий** по SDK (`owner/repo` — прошивка, обложка и описание берутся прямо оттуда) или загрузите свой `.bin`, задайте обложку (родную или любую картинку — 64×32 и кратные идут пиксель в пиксель, остальное уменьшается с дизерингом), посмотрите, как поделится память и что покажет HUB, а затем:
 
 - **запишите в ESPidi по USB** прямо из браузера (Chrome, Edge или Opera на компьютере): полная установка или обновление слотов с сохранением настроек и файлов;
 - или **скачайте один образ** для чистой установки любым прошивальщиком (`esptool --chip esp32c3 write_flash 0x0 espidi-custom.bin`).
@@ -43,6 +43,7 @@ python3 tools/espidi_hub.py base -p /dev/cu.usbmodem1101
 # прошивки в слоты
 python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 1 REDSEA.ino.bin
 python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 other.bin --cover other.png
+python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 owner/repo   # репозиторий по SDK
 
 # что установлено
 python3 tools/espidi_hub.py info -p /dev/cu.usbmodem1101
@@ -54,8 +55,8 @@ python3 tools/espidi_hub.py info -p /dev/cu.usbmodem1101
 
 - [docs/FIRMWARE_GUIDE.ru.md](docs/FIRMWARE_GUIDE.ru.md) — правила, распиновка, хранение данных, размер, сборка, публикация ([in English](docs/FIRMWARE_GUIDE.md)).
 - [AGENTS.md](AGENTS.md) — те же правила в виде чек-листа для ИИ-агентов.
-- `sdk/ESPidiHub` — библиотека Arduino: распиновка, дескриптор `ESPIDI_FIRMWARE()`, безопасная работа с файлами, `rebootToHub()`.
-- `templates/arduino-firmware` — стартовый скетч и workflow для GitHub Actions, который собирает и проверяет `.bin`.
+- `sdk/ESPidiHub` — библиотека Arduino: распиновка, дескриптор `ESPIDI_FIRMWARE()`, `ESPIDI_COVER()`, безопасная работа с файлами, `rebootToHub()`. Обложки: [sdk/ESPidiHub/COVERS.ru.md](sdk/ESPidiHub/COVERS.ru.md).
+- `templates/arduino-firmware` — готовый репозиторий по SDK для копирования: скетч, `espidi.json`, `cover.png` и workflow для GitHub Actions, который собирает, проверяет и публикует `.bin`, чтобы сборщик ставил прошивку по ссылке.
 
 ## Репозиторий
 

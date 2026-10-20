@@ -264,3 +264,91 @@ class CoverTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def png_of(bits):
+    """1-bit grayscale PNG of a cover (same bytes per row as the cover)."""
+    raw = b"".join(b"\0" + bits[y * 8:(y + 1) * 8] for y in range(32))
+
+    def chunk(t, d):
+        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 64, 32, 1, 0, 0, 0, 0)) +
+            chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+
+
+def with_cover(image, bits):
+    return image + b"\0" * (-len(image) % 4) + hub.FW_COVER_MAGIC + bits
+
+
+class RepoTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.bits, _ = checker_cover()
+        self.manifest = {"espidi": 1, "sketch": "Demo", "firmware": "espidi/Demo.ino.bin", "cover": "cover.png",
+                         "summary": {"en": "demo"}}
+        self.put("cover.png", png_of(self.bits))
+        self.put("espidi.json", hub.json.dumps(self.manifest).encode())
+        os.makedirs(os.path.join(self.dir, "Demo"))
+
+    def put(self, rel, data):
+        path = os.path.join(self.dir, *rel.split("/"))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(data)
+
+    def build(self, version, bits=None):
+        return with_cover(fake_image(6000, desc=("demo", "DEMO", version, "Me")), bits or self.bits)
+
+    def test_manifest_codes(self):
+        ok = {"espidi": 1, "firmware": "espidi/a.bin"}
+        self.assertEqual(hub.check_manifest(ok), [])
+        cases = [([], ["object"]), ({**ok, "espidi": 2}, ["format"]), ({**ok, "espidi": True}, ["format"]),
+                 ({"espidi": 1}, ["firmware"]), ({**ok, "firmware": "../a.bin"}, ["firmware"]),
+                 ({**ok, "firmware": "/a.bin"}, ["firmware"]), ({**ok, "cover": "c.jpg"}, ["cover"]),
+                 ({**ok, "summary": {"en": 1}}, ["summary"]), ({**ok, "sketch": "a b"}, ["sketch"]),
+                 ({**ok, "name": "N" * 24}, ["text"]), ({**ok, "version": 1}, ["text"])]
+        for m, want in cases:
+            self.assertEqual(hub.check_manifest(m), want, m)
+
+    def test_specs(self):
+        self.assertEqual(str(hub.parse_spec("https://github.com/o/r/tree/beta/fw/x")), "o/r/fw/x@beta")
+        self.assertEqual(str(hub.parse_spec("o/r/fw@feature/x")), "o/r/fw@feature/x")
+        self.assertEqual(str(hub.parse_spec("https://github.com/o/r.git")), "o/r")
+        for bad in ("o", "https://github.com/o/r/issues", "o/r/../x", "o/r@a b"):
+            self.assertRaises(hub.RepoError, hub.parse_spec, bad)
+
+    def test_not_published_yet(self):
+        rep = hub.check_repo(hub.LocalRepo(self.dir))
+        self.assertEqual(rep.cover, self.bits)
+        self.assertTrue(any("not in the repository" in p for p in rep.problems))
+        self.assertEqual(hub.check_repo(hub.LocalRepo(self.dir), need_firmware=False).problems, [])
+
+    def test_sync_cover_writes_a_compilable_header(self):
+        path = hub.sync_cover(self.dir, self.manifest, self.bits)
+        with open(path) as f:
+            text = f.read()
+        self.assertIn("ESPIDI_COVER(", text)
+        self.assertTrue(all(line.startswith("//") for line in text.split("#pragma once")[0].splitlines()))
+
+    def test_publish_only_a_new_version_or_cover(self):
+        rep = hub.check_repo(hub.LocalRepo(self.dir), need_firmware=False)
+        self.assertTrue(hub.publish_build(self.dir, rep, self.build("1.0")))
+        rep = hub.check_repo(hub.LocalRepo(self.dir))
+        self.assertEqual((rep.problems, rep.warnings, rep.meta().version), ([], [], "1.0"))
+        self.assertFalse(hub.publish_build(self.dir, rep, self.build("1.0")))
+        self.assertTrue(hub.publish_build(self.dir, rep, self.build("1.0", bytes(256))))
+        rep = hub.check_repo(hub.LocalRepo(self.dir))
+        self.assertTrue(any("differs" in w for w in rep.warnings))
+        self.assertTrue(hub.publish_build(self.dir, rep, self.build("1.1")))
+
+    def test_firmware_without_descriptor_needs_a_name(self):
+        self.put("espidi/Demo.ino.bin", fake_image(6000))
+        self.assertTrue(any("no ESPIDI_FIRMWARE" in p for p in hub.check_repo(hub.LocalRepo(self.dir)).problems))
+        self.put("espidi.json", hub.json.dumps({**self.manifest, "name": "OLD FW", "version": "2"}).encode())
+        rep = hub.check_repo(hub.LocalRepo(self.dir))
+        self.assertEqual((rep.problems, rep.meta().name, rep.meta().version), ([], "OLD FW", "2"))
+
+    def test_template_is_an_espidi_ready_repository(self):
+        rep = hub.check_repo(hub.LocalRepo(os.path.join(ROOT, "templates", "arduino-firmware")))
+        self.assertEqual((rep.problems, rep.warnings), ([], []))
+        self.assertEqual(rep.info.cover, rep.cover)

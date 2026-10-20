@@ -1,9 +1,24 @@
 # Arduino firmware template
 
-1. Copy this folder into a new repository.
-2. Rename `ESPidiTemplate/` and `ESPidiTemplate.ino` to your sketch name, set `SKETCH` in `.github/workflows/firmware.yml`.
+An ESPidi-ready repository: paste its address into the [ESPidi composer](https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/) (tab **GitHub**) and the firmware arrives with its name, cover and description.
+
+```
+espidi.json                      what the composer reads: sketch, built firmware, cover, summary
+cover.png                        64×32 cover (or 128×64, …), white = lit
+espidi/ESPidiTemplate.ino.bin    the published build (the workflow commits it)
+ESPidiTemplate/
+  ESPidiTemplate.ino             the sketch, with ESPIDI_FIRMWARE(...)
+  cover.h                        generated from cover.png
+.github/workflows/firmware.yml   build, check, publish
+```
+
+1. Copy this folder into a new repository (its root becomes the repository root).
+2. Rename `ESPidiTemplate/` and `ESPidiTemplate.ino` to your sketch name; change `"sketch"` and `"firmware"` in `espidi.json` to match.
 3. Change `ESPIDI_FIRMWARE("template", "TEMPLATE", "0.1.0", "Your Name")` — the id is also your NVS namespace and folder.
-4. Install the SDK (`sdk/ESPidiHub` from ESPidi-HUB) into your Arduino `libraries` folder.
-5. Replace the cover: draw 64×32 (or 128×64, …) black and white, white = lit, then `python3 tools/espidi_hub.py cover my-cover.png > ESPidiTemplate/cover.h`. Delete `cover.h` and its `#include` for no cover.
+4. Draw your `cover.png` ([covers](../../sdk/ESPidiHub/COVERS.md)), write your `"summary"`.
+5. Push. The workflow builds and, when the version in `ESPIDI_FIRMWARE()` is new, commits the build to `espidi/`. Without the workflow: build in Arduino IDE (Sketch → Export Compiled Binary), copy `<sketch>.ino.bin` to the `"firmware"` path, commit.
+6. Check what the composer will see: `python3 tools/espidi_hub.py repo <owner>/<repo>`.
+
+Local builds need the SDK (`sdk/ESPidiHub` from ESPidi-HUB) in your Arduino `libraries` folder. After changing `cover.png`: `python3 tools/espidi_hub.py repo . --sync-cover`.
 
 Rules: [docs/FIRMWARE_GUIDE.md](../../docs/FIRMWARE_GUIDE.md) · for agents: [AGENTS.md](../../AGENTS.md).

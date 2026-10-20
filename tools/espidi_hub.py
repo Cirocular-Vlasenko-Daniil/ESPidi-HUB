@@ -27,9 +27,11 @@ Commands (run with -h for options):
     image --hub-dir D [--slot1 F] [--slot2 F] --out FILE
                             one fresh-install image (HUB + firmwares) to flash at 0x0
     cover FILE > cover.h    turn an image into a 64x32 cover for a sketch (ESPIDI_COVER)
+    repo [DIR | owner/repo] check an ESPidi-ready repository (espidi.json); --sync-cover,
+                            --build BIN [--publish] for the firmware workflow
     info -p PORT            what is installed on a device
     base -p PORT            first install: erase flash, write bootloader + HUB
-    install -p PORT --slot N FILE [--cover IMG]
+    install -p PORT --slot N FILE|owner/repo [--cover IMG]
     remove -p PORT --slot N
 
 Needs esptool (`pip install esptool`) for the device commands.
@@ -45,6 +47,9 @@ import struct
 import subprocess
 import sys
 import tempfile
+import json
+import urllib.error
+import urllib.parse
 import urllib.request
 import zlib
 from dataclasses import dataclass, field
@@ -376,8 +381,12 @@ def pixels_to_cover(w: int, h: int, pixels, invert: bool = False) -> bytes:
 
 def load_cover(path: str, invert: bool = False) -> bytes:
     with open(path, "rb") as f:
-        data = f.read()
-    if path.lower().endswith((".bin", ".raw")):
+        return cover_from_bytes(f.read(), path, invert)
+
+
+def cover_from_bytes(data: bytes, name: str = "", invert: bool = False) -> bytes:
+    """PNG, PBM, or (when `name` ends with .bin/.raw) the 256 cover bytes themselves."""
+    if name.lower().endswith((".bin", ".raw")):
         if len(data) != COVER_BYTES:
             raise ValueError(f"a raw cover is exactly {COVER_BYTES} bytes")
         return bytes(b ^ 0xFF for b in data) if invert else data
@@ -388,6 +397,16 @@ def load_cover(path: str, invert: bool = False) -> bytes:
     else:
         raise ValueError("a cover is a PNG, a PBM or a raw 256-byte .bin")
     return pixels_to_cover(w, h, px, invert)
+
+
+def cover_png(bits: bytes) -> bytes:
+    """A 64x32 1-bit grayscale PNG of a cover: each PNG row is the cover row, byte for byte."""
+    raw = b"".join(b"\0" + bits[y * 8:(y + 1) * 8] for y in range(COVER_H))
+
+    def chunk(kind: bytes, body: bytes) -> bytes:
+        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", COVER_W, COVER_H, 1, 0, 0, 0, 0)) +
+            chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
 
 
 def cover_ascii(bits: bytes) -> str:
@@ -467,12 +486,271 @@ def build_image(bootloader: bytes, hub: bytes, slots: List[Optional[bytes]], met
     return bytes(out)
 
 
-def slot_meta_for(data: bytes, info: ImageInfo, args) -> SlotMeta:
-    d = info.desc or SlotMeta()
+def slot_meta_for(data: bytes, info: ImageInfo, args, fallback: Optional[SlotMeta] = None) -> SlotMeta:
+    d = info.desc or fallback or SlotMeta()
     name = args.name or d.name or os.path.splitext(os.path.basename(args.file))[0]
     return SlotMeta(id=args.id or d.id, name=name, version=args.fw_version or d.version,
                     author=args.author or d.author, image_size=len(data),
                     image_crc32=zlib.crc32(data))
+
+
+# ---------------------------------------------------------------------------
+# ESPidi-ready repositories. espidi.json (next to the sketch folder) says where the built
+# firmware and its cover are, so the composer site (web/github.js) and this tool take them
+# straight from the repository — GitHub release downloads cannot be read by a web page.
+# Format: docs/FIRMWARE_GUIDE.md, "Publishing".
+# ---------------------------------------------------------------------------
+MANIFEST = "espidi.json"
+MANIFEST_FORMAT = 1
+MANIFEST_TEXT = {"id": 15, "name": 23, "version": 15, "author": 23}   # fallbacks without a descriptor
+MANIFEST_PROBLEMS = {
+    "json": "espidi.json is not valid JSON",
+    "object": "espidi.json must be a JSON object",
+    "format": '"espidi" must be 1',
+    "firmware": '"firmware" must be the path of the .bin inside the repository, e.g. "espidi/MySketch.ino.bin"',
+    "cover": '"cover" must be the path of a .png inside the repository, e.g. "cover.png"',
+    "summary": '"summary" must be text or {"en": "...", "ru": "..."}',
+    "sketch": '"sketch" must be the name of the sketch folder',
+    "text": '"id"/"version" (max 15) and "name"/"author" (max 23) must be short text',
+}
+RAW_URL = "https://raw.githubusercontent.com"
+JSDELIVR_URL = "https://cdn.jsdelivr.net/gh"
+API_URL = "https://api.github.com"
+
+
+class RepoError(Exception):
+    pass
+
+
+def _repo_path(p, ext: str) -> bool:
+    return (isinstance(p, str) and p.lower().endswith(ext) and not p.startswith("/") and "\\" not in p
+            and all(seg not in ("", ".", "..") for seg in p.split("/")))
+
+
+def check_manifest(m) -> List[str]:
+    """Problem codes (keys of MANIFEST_PROBLEMS); validateManifest() in web/espidi.js is the same."""
+    if not isinstance(m, dict):
+        return ["object"]
+    out = []
+    if isinstance(m.get("espidi"), bool) or m.get("espidi") != MANIFEST_FORMAT:
+        out.append("format")
+    if not _repo_path(m.get("firmware"), ".bin"):
+        out.append("firmware")
+    if "cover" in m and not _repo_path(m["cover"], ".png"):
+        out.append("cover")
+    summary = m.get("summary", "")
+    if not (isinstance(summary, str) or (isinstance(summary, dict) and all(isinstance(v, str) for v in summary.values()))):
+        out.append("summary")
+    if "sketch" in m and not (isinstance(m["sketch"], str) and re.fullmatch(r"[A-Za-z0-9_.-]+", m["sketch"])):
+        out.append("sketch")
+    if any(k in m and not (isinstance(m[k], str) and len(m[k]) <= n) for k, n in MANIFEST_TEXT.items()):
+        out.append("text")
+    return out
+
+
+@dataclass
+class RepoSpec:
+    owner: str
+    repo: str
+    ref: str = ""      # branch, tag or commit; "" = the default branch
+    path: str = ""     # folder of espidi.json inside the repository
+
+    def __str__(self) -> str:
+        return f"{self.owner}/{self.repo}" + (f"/{self.path}" if self.path else "") + (f"@{self.ref}" if self.ref else "")
+
+
+_GITHUB_LINK = re.compile(r"^(?:https?://)?(?:www\.)?github\.com/([^/]+)/([^/]+)(?:/(?:tree|blob)/([^/]+)(?:/(.*))?)?$", re.I)
+_RAW_LINK = re.compile(r"^(?:https?://)?raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.*)$", re.I)
+
+
+def parse_spec(text: str) -> RepoSpec:
+    """owner/repo[/folder][@ref], a github.com link (…/tree/<ref>/<folder>, …/blob/<ref>/…/espidi.json)
+    or a raw.githubusercontent.com link. parseSpec() in web/github.js is the same."""
+    s = re.sub(r"[?#].*$", "", text.strip()).rstrip("/")
+    m = _GITHUB_LINK.match(s) or _RAW_LINK.match(s)
+    if m:
+        owner, repo, ref, path = m.group(1), m.group(2), m.group(3) or "", m.group(4) or ""
+    else:
+        body, _, ref = s.partition("@")
+        parts = body.split("/")
+        if len(parts) < 2:
+            raise RepoError(f"{text!r}: write owner/repo, owner/repo@branch or a GitHub link")
+        owner, repo, path = parts[0], parts[1], "/".join(parts[2:])
+    if repo.lower().endswith(".git"):
+        repo = repo[:-4]
+    path = path.strip("/")
+    if path == MANIFEST or path.endswith("/" + MANIFEST):
+        path = path[:-len(MANIFEST)].rstrip("/")
+    ok = (re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]{0,38}", owner) and re.fullmatch(r"[A-Za-z0-9._-]{1,100}", repo)
+          and (not path or all(seg not in ("", ".", "..") for seg in path.split("/")))
+          and re.fullmatch(r"[^\s~^:?*\[\\]*", ref) and ".." not in ref and not ref.startswith("/") and not ref.endswith("/"))
+    if not ok:
+        raise RepoError(f"{text!r}: write owner/repo, owner/repo@branch or a GitHub link")
+    return RepoSpec(owner, repo, ref, path)
+
+
+def _http_get(url: str, accept: str = "") -> Optional[bytes]:
+    """The body, or None for 404."""
+    req = urllib.request.Request(url, headers={"User-Agent": "espidi-hub", **({"Accept": accept} if accept else {})})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return r.read()
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+
+
+def _quote_path(p: str) -> str:
+    return "/".join(urllib.parse.quote(seg, safe="") for seg in p.split("/"))
+
+
+def resolve_commit(spec: RepoSpec) -> Optional[str]:
+    """The commit the ref points to, so all files come from one commit; None when the API is
+    unreachable or rate-limited (60 requests an hour without a token) — files then come by ref."""
+    try:
+        body = _http_get(f"{API_URL}/repos/{spec.owner}/{spec.repo}/commits/{_quote_path(spec.ref or 'HEAD')}",
+                         "application/vnd.github.sha")
+    except urllib.error.HTTPError as e:
+        if e.code == 422:
+            raise RepoError(f"no branch, tag or commit {spec.ref!r} in {spec.owner}/{spec.repo}")
+        return None
+    except (urllib.error.URLError, OSError):
+        return None
+    if body is None:
+        raise RepoError(f"no repository {spec.owner}/{spec.repo} on GitHub (or it is private)")
+    sha = body.decode("ascii", "replace").strip()
+    return sha if re.fullmatch(r"[0-9a-f]{40}", sha) else None
+
+
+class LocalRepo:
+    def __init__(self, path: str):
+        self.dir = path
+        self.where = os.path.abspath(path)
+
+    def read(self, rel: str) -> Optional[bytes]:
+        try:
+            with open(os.path.join(self.dir, *rel.split("/")), "rb") as f:
+                return f.read()
+        except FileNotFoundError:
+            return None
+
+
+class GithubRepo:
+    def __init__(self, spec: RepoSpec):
+        self.spec = spec
+        self.sha = resolve_commit(spec)
+        self.at = self.sha or spec.ref or "HEAD"
+        self.where = f"{spec.owner}/{spec.repo}" + (f"/{spec.path}" if spec.path else "") + f" at {self.at[:12]}"
+
+    def read(self, rel: str) -> Optional[bytes]:
+        s = self.spec
+        path = _quote_path("/".join(x for x in (s.path, rel) if x))
+        at = _quote_path(self.at)
+        urls = [f"{RAW_URL}/{s.owner}/{s.repo}/{at}/{path}",
+                f"{JSDELIVR_URL}/{s.owner}/{s.repo}" + ("" if self.at == "HEAD" else f"@{at}") + f"/{path}"]
+        for url in urls:
+            try:
+                return _http_get(url)
+            except (urllib.error.URLError, OSError):
+                continue
+        raise RepoError(f"could not reach GitHub for {rel}")
+
+
+def open_repo(target: str):
+    return LocalRepo(target) if os.path.isdir(target) else GithubRepo(parse_spec(target))
+
+
+@dataclass
+class RepoReport:
+    manifest: Optional[dict] = None
+    firmware: Optional[bytes] = None
+    info: Optional[ImageInfo] = None
+    cover: Optional[bytes] = None
+    problems: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+
+    def meta(self) -> SlotMeta:
+        """What the HUB shows: the descriptor, else the fallbacks in espidi.json."""
+        if self.info and self.info.desc:
+            return self.info.desc
+        m = self.manifest or {}
+        return SlotMeta(m.get("id", ""), m.get("name", ""), m.get("version", ""), m.get("author", ""))
+
+
+def check_repo(src, need_firmware: bool = True) -> RepoReport:
+    rep = RepoReport()
+    raw = src.read(MANIFEST)
+    if raw is None:
+        rep.problems.append(f"no {MANIFEST} in {src.where} — not an ESPidi-ready repository")
+        return rep
+    try:
+        m = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        rep.problems.append(MANIFEST_PROBLEMS["json"])
+        return rep
+    codes = check_manifest(m)
+    rep.problems += [MANIFEST_PROBLEMS[c] for c in codes]
+    if codes:
+        return rep
+    rep.manifest = m
+    if "cover" in m:
+        data = src.read(m["cover"])
+        if data is None:
+            rep.problems.append(f"cover {m['cover']} is not in the repository")
+        else:
+            try:
+                rep.cover = cover_from_bytes(data, m["cover"])
+            except ValueError as e:
+                rep.problems.append(f"cover {m['cover']}: {e}")
+    rep.firmware = src.read(m["firmware"])
+    if rep.firmware is None:
+        if need_firmware:
+            rep.problems.append(f"firmware {m['firmware']} is not in the repository — publish a build "
+                                "(the firmware workflow does it when the version changes)")
+        return rep
+    rep.info = inspect_image(rep.firmware)
+    rep.problems += [f"{m['firmware']}: {p}" for p in rep.info.problems]
+    d = rep.info.desc
+    if not d and not m.get("name"):
+        rep.problems.append(f"{m['firmware']} has no ESPIDI_FIRMWARE() and {MANIFEST} has no \"name\"")
+    if d:
+        for k in ("id", "name", "version", "author"):
+            if m.get(k) and m[k] != getattr(d, k):
+                rep.warnings.append(f'{MANIFEST} "{k}" is {m[k]!r}, the firmware says {getattr(d, k)!r} — the firmware wins')
+    if rep.cover and rep.info.cover and rep.cover != rep.info.cover:
+        rep.warnings.append(f"the cover inside {m['firmware']} differs from {m['cover']} — run repo --sync-cover and rebuild")
+    return rep
+
+
+def sync_cover(repo_dir: str, m: dict, cover: Optional[bytes]) -> Optional[str]:
+    """Writes <sketch>/cover.h from the manifest's cover. Returns the path, or None if there is nothing to write."""
+    if not cover or not m.get("sketch"):
+        return None
+    path = os.path.join(repo_dir, m["sketch"], "cover.h")
+    text = cover_header(cover, m["cover"], generated=True)
+    old = None
+    if os.path.exists(path):
+        with open(path) as f:
+            old = f.read()
+    if old != text:
+        with open(path, "w") as f:
+            f.write(text)
+    return path
+
+
+def publish_build(repo_dir: str, rep: RepoReport, build: bytes) -> bool:
+    """Copies a fresh build to the manifest's firmware path when its version (or cover) is new.
+    Same version, same cover: nothing to publish (builds differ only by their timestamp)."""
+    new = inspect_image(build)
+    old = rep.info
+    if old and old.desc and new.desc and old.desc.version == new.desc.version and old.cover == new.cover:
+        return False
+    path = os.path.join(repo_dir, *rep.manifest["firmware"].split("/"))
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "wb") as f:
+        f.write(build)
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -618,10 +896,15 @@ def cmd_info(args) -> int:
     return 0
 
 
-def cover_header(bits: bytes, source: str = "") -> str:
+def cover_header(bits: bytes, source: str = "", generated: bool = False) -> str:
     """A cover.h for a sketch: the picture as a comment, then ESPIDI_COVER(...)."""
     lines = [", ".join(f"0x{b:02x}" for b in bits[i:i + 16]) for i in range(0, COVER_BYTES, 16)]
-    head = f"// ESPidi HUB cover{' from ' + source if source else ''} (64x32, 1 = lit):\n"
+    head = ""
+    if generated:
+        head = (f"// Generated from {source} — do not edit. Change {source}, then run\n"
+                "//   python3 <ESPidi-HUB>/tools/espidi_hub.py repo . --sync-cover\n"
+                "// (the firmware workflow does it before every build).\n")
+    head += f"// ESPidi HUB cover{' from ' + source if source else ''} (64x32, 1 = lit):\n"
     return (head + "\n".join("// " + row for row in cover_ascii(bits).splitlines()) +
             "\n#pragma once\n#include <ESPidiHub.h>\n\nESPIDI_COVER(\n  " + ",\n  ".join(lines) + ");\n")
 
@@ -629,6 +912,64 @@ def cover_header(bits: bytes, source: str = "") -> str:
 def cmd_cover(args) -> int:
     print(cover_header(load_cover(args.file, args.invert), os.path.basename(args.file)), end="")
     return 0
+
+
+def cmd_repo(args) -> int:
+    try:
+        src = open_repo(args.target)
+        if isinstance(src, GithubRepo) and (args.sync_cover or args.publish):
+            raise RepoError("--sync-cover and --publish work on a local checkout")
+        rep = check_repo(src, need_firmware=not args.build)
+    except RepoError as e:
+        print(f"ERROR:    {e}")
+        return 1
+    print(f"repo:     {src.where}")
+    m = rep.manifest
+    if m:
+        print(f"sketch:   {m.get('sketch', '-')}")
+        print(f"cover:    {m.get('cover', 'none (the firmware cover or the name)')}")
+        if rep.info:
+            d = rep.meta()
+            print(f"firmware: {m['firmware']} — {d.name} {d.version}, {fmt_size(len(rep.firmware))}")
+        else:
+            print(f"firmware: {m['firmware']} — not published yet")
+        if args.sync_cover:
+            path = sync_cover(args.target, m, rep.cover)
+            print(f"cover.h:  {path or 'nothing to write (needs sketch and cover in ' + MANIFEST + ')'}")
+    if args.build and m:
+        with open(args.build, "rb") as f:
+            build = f.read()
+        info = inspect_image(build)
+        if not info.desc:
+            info.problems.append("no ESPIDI_FIRMWARE() — add it to the sketch")
+        rep.problems += [f"{args.build}: {p}" for p in info.problems]
+        if rep.cover and info.cover != rep.cover:
+            rep.warnings.append(f"the cover inside {args.build} differs from {m['cover']} — run repo --sync-cover before building")
+        if args.publish and not rep.problems:
+            if publish_build(args.target, rep, build):
+                print(f"publish:  {info.desc.name} {info.desc.version} -> {m['firmware']}")
+            else:
+                print(f"publish:  {info.desc.version} is already published (change the version to publish a new build)")
+    for w in rep.warnings:
+        print(f"WARNING:  {w}")
+    for p in rep.problems:
+        print(f"ERROR:    {p}")
+    return 1 if rep.problems else 0
+
+
+def load_firmware_arg(target: str):
+    """A .bin path, or an ESPidi-ready repository (local folder or owner/repo):
+    -> (data, info, cover from the repository or None, name fallbacks)."""
+    if os.path.isfile(target):
+        with open(target, "rb") as f:
+            data = f.read()
+        return data, inspect_image(data), None, None
+    src = open_repo(target)
+    rep = check_repo(src)
+    if rep.problems:
+        raise RepoError("; ".join(rep.problems))
+    print(f"from {src.where}: {rep.manifest['firmware']}")
+    return rep.firmware, rep.info, rep.cover, rep.meta()
 
 
 def fetch(url: str) -> bytes:
@@ -664,17 +1005,20 @@ def cmd_base(args) -> int:
 
 def cmd_install(args) -> int:
     i = args.slot - 1
-    with open(args.file, "rb") as f:
-        data = f.read()
-    info = inspect_image(data)
+    try:
+        data, info, repo_cover, fallback = load_firmware_arg(args.file)
+    except RepoError as e:
+        print(f"ERROR: {e}")
+        return 1
     if info.problems:
         for p in info.problems:
             print(f"ERROR: {p}")
         return 1
-    cover = None if args.no_cover else (load_cover(args.cover, args.invert_cover) if args.cover else info.cover)
+    own = repo_cover or info.cover
+    cover = None if args.no_cover else (load_cover(args.cover, args.invert_cover) if args.cover else own)
     layout, meta, covers = read_state(args)
     new = layout.with_slot(i, len(data))
-    meta[i] = slot_meta_for(data, info, args)
+    meta[i] = slot_meta_for(data, info, args, fallback)
     covers[i] = cover
     print(f"slot {args.slot}: {meta[i].name} {meta[i].version} -> {new.offset(i):#x}, {fmt_size(new.alloc(i))}")
     # Image first: until the partition table changes, the old table still describes the
@@ -735,6 +1079,13 @@ def main(argv=None) -> int:
     p.add_argument("--invert", action="store_true", help="for black-on-white art")
     p.set_defaults(func=cmd_cover)
 
+    p = sub.add_parser("repo", help="check an ESPidi-ready repository (espidi.json)")
+    p.add_argument("target", nargs="?", default=".", help="local folder (default .) or owner/repo[/folder][@ref] / GitHub link")
+    p.add_argument("--sync-cover", action="store_true", help="write <sketch>/cover.h from the cover in espidi.json")
+    p.add_argument("--build", metavar="BIN", help="check a fresh build too")
+    p.add_argument("--publish", action="store_true", help="with --build: copy it to the firmware path if its version is new")
+    p.set_defaults(func=cmd_repo)
+
     p = sub.add_parser("info", help="show what is installed")
     device(p)
     p.set_defaults(func=cmd_info)
@@ -749,12 +1100,12 @@ def main(argv=None) -> int:
     p = sub.add_parser("install", help="put a firmware into a slot")
     device(p)
     p.add_argument("--slot", type=int, choices=(1, 2), required=True)
-    p.add_argument("file")
+    p.add_argument("file", help="firmware .bin, or an ESPidi-ready repository: folder or owner/repo[@ref]")
     p.add_argument("--id")
     p.add_argument("--name")
     p.add_argument("--fw-version")
     p.add_argument("--author")
-    p.add_argument("--cover", help="PNG or PBM, 64x32 or a multiple (default: the one inside the firmware)")
+    p.add_argument("--cover", help="PNG or PBM, 64x32 or a multiple (default: the repository's, else the one inside the firmware)")
     p.add_argument("--invert-cover", action="store_true", help="for black-on-white art")
     p.add_argument("--no-cover", action="store_true")
     p.set_defaults(func=cmd_install)

@@ -1,6 +1,7 @@
-// Make your own: python3 tools/espidi_hub.py cover my-cover.png > cover.h
-// (PNG or PBM, 64x32 or a multiple of it; white pixels are lit, --invert for black-on-white art)
-// ESPidi HUB cover from template.cover.png (64x32, 1 = lit):
+// Generated from cover.png — do not edit. Change cover.png, then run
+//   python3 <ESPidi-HUB>/tools/espidi_hub.py repo . --sync-cover
+// (the firmware workflow does it before every build).
+// ESPidi HUB cover from cover.png (64x32, 1 = lit):
 // ................................................................
 // ................................................................
 // ................................................................

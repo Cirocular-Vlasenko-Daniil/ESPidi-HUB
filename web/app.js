@@ -4,6 +4,7 @@ import * as E from "./espidi.js";
 import { GLYPHS } from "./font.js";
 import { t, setLang, getLang, detectLang, saveLang } from "./i18n.js";
 import { Device, webSerialSupported } from "./flasher.js";
+import * as G from "./github.js";
 
 const BUTTON = ["PLAY", "PAGE"];
 const HUB_VERSION = "0.1.0";
@@ -13,11 +14,12 @@ const state = {
   data: new Map(),   // catalog index -> Uint8Array | "loading" | Error
   covers: new Map(), // catalog index -> its cover (Uint8Array, 64x32 1 bit)
   hub: null,         // { bootloader, hub, version } once the HUB build is published
-  // cover.mode: "auto" — the firmware's own cover (catalog, inside the image, on the device),
+  // gh: the GitHub tab — { input, spec, status: "loading" | "ok" | "error", repo, error }
+  // cover.mode: "auto" — the firmware's own cover (catalog, repository, inside the image, on the device),
   // "custom" — a picture the user put, "none" — no cover.
   slots: [
-    { mode: "catalog", pick: 0, file: null, name: "", version: "", cover: { mode: "auto" } },
-    { mode: "empty", pick: -1, file: null, name: "", version: "", cover: { mode: "auto" } },
+    { mode: "catalog", pick: 0, file: null, name: "", version: "", cover: { mode: "auto" }, gh: { input: "" } },
+    { mode: "empty", pick: -1, file: null, name: "", version: "", cover: { mode: "auto" }, gh: { input: "" } },
   ],
   screen: "menu",    // OLED preview: "menu" or a slot index (its start screen)
   device: null,
@@ -51,9 +53,21 @@ function baseSource(i) {
     const fw = state.catalog[s.pick];
     return { kind: "image", data, meta: { id: fw.id, name: fw.name, version: fw.version, author: fw.author } };
   }
+  if (s.mode === "github") {
+    const r = s.gh.status === "ok" ? s.gh.repo : null;
+    return r && !r.info.problems.length ? { kind: "image", data: r.data, meta: repoMeta(r) } : null;
+  }
   if (!s.file || s.file.info.problems.length) return null;
   const d = s.file.info.desc;
   return { kind: "image", data: s.file.data, meta: { id: d?.id || "", name: s.name, version: s.version, author: d?.author || "" } };
+}
+
+// What the HUB will show for a repository firmware: its descriptor, else the fallbacks in
+// espidi.json (RepoReport.meta() in Python), else the repository name.
+function repoMeta(r) {
+  const d = r.info.desc, m = r.manifest;
+  return { id: d?.id || m.id || "", name: d?.name || m.name || r.spec.repo.toUpperCase().slice(0, 23),
+    version: d?.version || m.version || "", author: d?.author || m.author || "" };
 }
 
 function sourceOf(i) {
@@ -80,7 +94,8 @@ function ownCover(i) {
     return c ? { bits: c, from: "device" } : null;
   }
   if (s.mode === "catalog" && state.covers.get(s.pick)) return { bits: state.covers.get(s.pick), from: "catalog" };
-  const c = s.mode === "file" ? s.file.info.cover : embeddedCover(src.data);
+  if (s.mode === "github" && s.gh.repo.cover) return { bits: s.gh.repo.cover, from: "repo", path: s.gh.repo.manifest.cover };
+  const c = s.mode === "file" ? s.file.info.cover : s.mode === "github" ? s.gh.repo.info.cover : embeddedCover(src.data);
   return c ? { bits: c, from: "firmware" } : null;
 }
 
@@ -133,6 +148,83 @@ async function loadCover(i, file) {
     s.cover = { ...s.cover, error: file.name };
   }
   render();
+}
+
+// ---------------------------------------------------------------------------
+// GitHub tab
+// ---------------------------------------------------------------------------
+const RECENT_KEY = "espidi-repos";
+
+function recentRepos() {
+  try {
+    const list = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+    return Array.isArray(list) ? list.filter((x) => typeof x === "string").slice(0, 6) : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberRepo(spec) {
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify([spec, ...recentRepos().filter((x) => x !== spec)].slice(0, 6)));
+  } catch {
+    // storage may be blocked
+  }
+}
+
+async function loadGithub(i, text) {
+  const s = state.slots[i];
+  s.mode = "github";
+  s.cover = { mode: "auto" };
+  let spec;
+  try {
+    spec = G.parseSpec(text);
+  } catch {
+    s.gh = { input: text, status: "error", error: { code: "gh_spec", params: {} } };
+    render();
+    return;
+  }
+  const gh = { input: G.formatSpec(spec), spec, status: "loading" };
+  s.gh = gh;
+  render();
+  try {
+    const r = await G.loadRepo(spec);
+    r.info = E.inspectImage(r.data);
+    if (r.coverData) {
+      try {
+        r.cover = pictureToCover(await decodePicture(new Blob([r.coverData], { type: "image/png" })), false).bits;
+      } catch {
+        r.coverBad = true;
+      }
+    }
+    if (s.gh !== gh) return;   // another load started meanwhile
+    s.gh = { ...gh, status: "ok", repo: r };
+    rememberRepo(gh.input);
+  } catch (e) {
+    if (s.gh !== gh) return;
+    s.gh = { ...gh, status: "error", error: e instanceof G.GithubError ? e : { code: "gh_network", params: {} } };
+  }
+  render();
+}
+
+// ?play=owner/repo&page=owner/repo — a link that opens the composer with these firmwares.
+function syncUrl() {
+  const params = new URLSearchParams(location.search);
+  ["play", "page"].forEach((key, i) => {
+    const s = state.slots[i];
+    if (s.mode === "github" && s.gh.spec) params.set(key, G.formatSpec(s.gh.spec));
+    else params.delete(key);
+  });
+  // owner/repo@ref reads better than owner%2Frepo%40ref, and is just as valid in a query.
+  const query = params.toString().replace(/%2F/gi, "/").replace(/%40/gi, "@");
+  const url = `${location.pathname}${query ? `?${query}` : ""}${location.hash}`;
+  if (url !== `${location.pathname}${location.search}${location.hash}`) history.replaceState(null, "", url);
+}
+
+function githubError(e) {
+  const p = { ...e.params };
+  if (e.code === "gh_bad_manifest") p.detail = (p.codes || []).map((c) => t(`mf_${c}`)).join("; ");
+  return t(e.code, p);
 }
 
 async function loadCatalogCovers() {
@@ -271,7 +363,7 @@ function drawMenu(ctx) {
 function renderSlot(i) {
   const s = state.slots[i];
   const el = document.querySelector(`.slot[data-slot="${i}"]`);
-  const modes = ["catalog", "file", "empty", ...(canKeep() ? ["keep"] : [])];
+  const modes = ["catalog", "github", "file", "empty", ...(canKeep() ? ["keep"] : [])];
   const tabs = modes.map((m) =>
     `<button type="button" data-mode="${m}" aria-pressed="${s.mode === m}">${esc(t(`src_${m}`))}</button>`).join("");
 
@@ -284,6 +376,29 @@ function renderSlot(i) {
         <span class="meta">${esc(fw.version)} · ${fmt(fw.size)}</span>
         <span class="summary">${esc(fw.summary?.[getLang()] || fw.summary?.en || "")}</span>
       </button>`).join("")}</div>`;
+  } else if (s.mode === "github") {
+    const recent = recentRepos();
+    body = `<form class="gh" data-gh-form>
+        <input data-gh-input value="${esc(s.gh.input)}" placeholder="${esc(t("gh_placeholder"))}" aria-label="${esc(t("gh_placeholder"))}"
+          spellcheck="false" autocomplete="off" autocapitalize="off" enterkeyhint="go">
+        <button type="submit" ${s.gh.status === "loading" ? "disabled" : ""}>${esc(t("gh_load"))}</button>
+      </form>
+      <div class="hint">${esc(t("gh_hint"))}</div>
+      ${recent.length ? `<div class="recent"><span class="muted">${esc(t("gh_recent"))}</span>${recent.map((r) =>
+        `<button type="button" data-gh-recent="${esc(r)}">${esc(r)}</button>`).join("")}</div>` : ""}`;
+    if (s.gh.status === "loading") body += `<div class="muted">${esc(t("gh_loading", { spec: s.gh.input }))}</div>`;
+    if (s.gh.status === "error") body += `<div class="err">${esc(githubError(s.gh.error))}</div>`;
+    if (s.gh.status === "ok") {
+      const r = s.gh.repo, meta = repoMeta(r), m = r.manifest;
+      const summary = typeof m.summary === "string" ? m.summary : m.summary?.[getLang()] || m.summary?.en || "";
+      body += `<div class="fw repo-card${r.cover ? " has-thumb" : ""}">
+          ${r.cover ? `<canvas class="thumb" width="64" height="32" data-repo-thumb aria-hidden="true"></canvas>` : ""}
+          <span class="name">${esc(meta.name)}<span class="tag">github</span></span>
+          <span class="meta">${esc(meta.version)} · ${fmt(r.data.length)}</span>
+          <span class="summary">${summary ? `${esc(summary)}<br>` : ""}<a href="${esc(G.webUrl(r.spec, r.sha))}" target="_blank" rel="noopener">${
+            esc(t("gh_from", { repo: `${r.spec.owner}/${r.spec.repo}`, at: r.sha ? r.sha.slice(0, 7) : r.at }))} ↗</a></span>
+        </div>`;
+    }
   } else if (s.mode === "file") {
     body = `<label class="drop" data-drop="${i}">${esc(t("drop"))}<input type="file" accept=".bin,application/octet-stream"></label>
       <div class="hint">${esc(t("file_hint"))}</div>`;
@@ -306,6 +421,7 @@ function renderSlot(i) {
     ${body}
     <div class="slot-foot" id="foot-${i}"></div>`;
   el.querySelectorAll("[data-thumb]").forEach((cv) => paintCover(cv, state.covers.get(Number(cv.dataset.thumb))));
+  el.querySelectorAll("[data-repo-thumb]").forEach((cv) => paintCover(cv, s.gh.repo?.cover));
   renderFoot(i);
 }
 
@@ -315,7 +431,7 @@ function renderCover(i) {
   const own = ownCover(i);
   let status;
   if (cover?.from === "custom") status = t("cover_from_custom", { name: c.name }) + (c.fitted ? ` ${t("cover_fitted")}` : "");
-  else if (cover) status = t(`cover_from_${cover.from}`);
+  else if (cover) status = t(`cover_from_${cover.from}`, { path: cover.path });
   else status = t(c.mode === "none" ? "cover_removed" : "cover_none");
   const acts = [["upload", true], ["invert", c.mode === "custom"], ["remove", c.mode === "auto" && own],
     ["reset", c.mode === "none" || (c.mode === "custom" && own)], ["remove", c.mode === "custom" && !own]];
@@ -350,6 +466,18 @@ function renderFoot(i) {
         <div class="muted">${esc(t("takes", { size: fmt(data.length), alloc: fmt(E.alignUp(data.length)) }))}</div>`;
       html += renderCover(i);
       if (fw.screen) html += `<img class="shot" src="catalog/${esc(fw.screen)}" alt="${esc(fw.name)}">`;
+    }
+  } else if (s.mode === "github") {
+    const r = s.gh.status === "ok" ? s.gh.repo : null;
+    if (!r) html = `<span class="muted">—</span>`;
+    else if (r.info.problems.length) html = r.info.problems.map((x) => `<div class="err">${esc(problemText(x))}</div>`).join("");
+    else {
+      const meta = repoMeta(r);
+      html = `<div class="what">${esc(meta.name)} ${esc(meta.version)}</div>
+        <div class="muted">${esc(t("takes", { size: fmt(r.data.length), alloc: fmt(E.alignUp(r.data.length)) }))}</div>`;
+      if (r.coverMissing) html += `<div class="hint">${esc(t("gh_cover_missing", { path: r.manifest.cover }))}</div>`;
+      if (r.coverBad) html += `<div class="hint">${esc(t("gh_cover_bad", { path: r.manifest.cover }))}</div>`;
+      html += renderCover(i);
     }
   } else if (s.mode === "file") {
     if (s.file) {
@@ -457,6 +585,7 @@ function render() {
 }
 
 function renderDerived() {
+  syncUrl();
   renderMap();
   renderOled();
   renderWrite();
@@ -621,6 +750,11 @@ document.querySelector(".slots").addEventListener("click", (e) => {
   const s = state.slots[i];
   const mode = e.target.closest("[data-mode]")?.dataset.mode;
   const pick = e.target.closest("[data-pick]")?.dataset.pick;
+  const recent = e.target.closest("[data-gh-recent]")?.dataset.ghRecent;
+  if (recent) {
+    loadGithub(i, recent);
+    return;
+  }
   const act = e.target.closest("[data-cover-act]")?.dataset.coverAct;
   if (act) {
     if (act === "upload") card.querySelector("[data-cover-input]").click();
@@ -652,7 +786,19 @@ document.querySelector(".slots").addEventListener("change", (e) => {
   else loadFile(i, e.target.files[0]);
 });
 
+document.querySelector(".slots").addEventListener("submit", (e) => {
+  if (!e.target.matches("[data-gh-form]")) return;
+  e.preventDefault();
+  if (state.busy) return;
+  const i = Number(e.target.closest(".slot").dataset.slot);
+  loadGithub(i, e.target.querySelector("[data-gh-input]").value);
+});
+
 document.querySelector(".slots").addEventListener("input", (e) => {
+  if ("ghInput" in e.target.dataset) {
+    state.slots[Number(e.target.closest(".slot").dataset.slot)].gh.input = e.target.value;
+    return;
+  }
   const field = e.target.dataset.field;
   if (!field) return;
   const i = Number(e.target.closest(".slot").dataset.slot);
@@ -705,6 +851,8 @@ document.querySelectorAll(".lang button").forEach((b) => b.addEventListener("cli
 // ---------------------------------------------------------------------------
 setLang(detectLang());
 renderLogo();
+const params = new URLSearchParams(location.search);
+["play", "page"].forEach((key, i) => { if (params.get(key)) loadGithub(i, params.get(key)); });
 render();
 await Promise.all([loadCatalog(), loadHub()]);
 render();

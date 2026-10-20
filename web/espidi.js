@@ -359,6 +359,30 @@ export function inspectImage(data) {
 }
 
 // ---------------------------------------------------------------------------
+// espidi.json of an ESPidi-ready repository — check_manifest() in tools/espidi_hub.py.
+// Problem codes: object, format, firmware, cover, summary, sketch, text.
+// ---------------------------------------------------------------------------
+export const MANIFEST = "espidi.json";
+const MANIFEST_TEXT = { id: 15, name: 23, version: 15, author: 23 };
+
+const repoPath = (p, ext) => typeof p === "string" && p.toLowerCase().endsWith(ext) && !p.startsWith("/") &&
+  !p.includes("\\") && p.split("/").every((seg) => !["", ".", ".."].includes(seg));
+
+export function validateManifest(m) {
+  if (m === null || typeof m !== "object" || Array.isArray(m)) return ["object"];
+  const out = [];
+  if (m.espidi !== 1) out.push("format");
+  if (!repoPath(m.firmware, ".bin")) out.push("firmware");
+  if ("cover" in m && !repoPath(m.cover, ".png")) out.push("cover");
+  const summary = "summary" in m ? m.summary : "";
+  if (!(typeof summary === "string" || (summary && typeof summary === "object" && !Array.isArray(summary) &&
+    Object.values(summary).every((v) => typeof v === "string")))) out.push("summary");
+  if ("sketch" in m && !(typeof m.sketch === "string" && /^[A-Za-z0-9_.-]+$/.test(m.sketch))) out.push("sketch");
+  if (Object.entries(MANIFEST_TEXT).some(([k, n]) => k in m && !(typeof m[k] === "string" && m[k].length <= n))) out.push("text");
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // What to write. A slot source is one of:
 //   { kind: "empty" }
 //   { kind: "keep" }                                (device update only)

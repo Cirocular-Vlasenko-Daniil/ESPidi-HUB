@@ -45,6 +45,7 @@
         "en": "SDK example: buttons, MIDI out, settings, files, a long press on the encoder goes back to the HUB.",
         "ru": "Пример SDK: кнопки, MIDI-выход, настройки, файлы, долгое нажатие энкодера — назад в HUB."
       },
+      "source": "Cirocular-Vlasenko-Daniil/ESPidi-HUB/templates/arduino-firmware@main",
       "file": "template-0.1.0.bin",
       "cover": "template.cover.png",
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/tree/main/templates/arduino-firmware",

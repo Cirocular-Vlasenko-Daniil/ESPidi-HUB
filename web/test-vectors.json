@@ -343,5 +343,361 @@
   ],
   "size": 3145728,
   "md5": "32c29eae8ffcc6127aae6fc9e25b3c49"
- }
+ },
+ "specs": [
+  {
+   "text": "o/r",
+   "spec": {
+    "owner": "o",
+    "repo": "r",
+    "ref": "",
+    "path": ""
+   },
+   "formatted": "o/r"
+  },
+  {
+   "text": "o/r@beta",
+   "spec": {
+    "owner": "o",
+    "repo": "r",
+    "ref": "beta",
+    "path": ""
+   },
+   "formatted": "o/r@beta"
+  },
+  {
+   "text": "Owner-1/my.repo_2/fw/sub@feature/x",
+   "spec": {
+    "owner": "Owner-1",
+    "repo": "my.repo_2",
+    "ref": "feature/x",
+    "path": "fw/sub"
+   },
+   "formatted": "Owner-1/my.repo_2/fw/sub@feature/x"
+  },
+  {
+   "text": "github.com/o/r.git",
+   "spec": {
+    "owner": "o",
+    "repo": "r",
+    "ref": "",
+    "path": ""
+   },
+   "formatted": "o/r"
+  },
+  {
+   "text": "https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/tree/main/templates/arduino-firmware",
+   "spec": {
+    "owner": "Cirocular-Vlasenko-Daniil",
+    "repo": "ESPidi-HUB",
+    "ref": "main",
+    "path": "templates/arduino-firmware"
+   },
+   "formatted": "Cirocular-Vlasenko-Daniil/ESPidi-HUB/templates/arduino-firmware@main"
+  },
+  {
+   "text": "https://github.com/o/r/blob/v1.2/espidi.json",
+   "spec": {
+    "owner": "o",
+    "repo": "r",
+    "ref": "v1.2",
+    "path": ""
+   },
+   "formatted": "o/r@v1.2"
+  },
+  {
+   "text": "https://www.github.com/o/r/tree/abc123/",
+   "spec": {
+    "owner": "o",
+    "repo": "r",
+    "ref": "abc123",
+    "path": ""
+   },
+   "formatted": "o/r@abc123"
+  },
+  {
+   "text": "https://raw.githubusercontent.com/o/r/main/fw/espidi.json",
+   "spec": {
+    "owner": "o",
+    "repo": "r",
+    "ref": "main",
+    "path": "fw"
+   },
+   "formatted": "o/r/fw@main"
+  },
+  {
+   "text": " o/r?tab=readme ",
+   "spec": {
+    "owner": "o",
+    "repo": "r",
+    "ref": "",
+    "path": ""
+   },
+   "formatted": "o/r"
+  },
+  {
+   "text": "o",
+   "spec": null
+  },
+  {
+   "text": "o/",
+   "spec": null
+  },
+  {
+   "text": "https://github.com/o/r/issues",
+   "spec": null
+  },
+  {
+   "text": "o/r/../x",
+   "spec": null
+  },
+  {
+   "text": "-o/r",
+   "spec": null
+  },
+  {
+   "text": "o/r@a b",
+   "spec": null
+  },
+  {
+   "text": "o/r@a..b",
+   "spec": null
+  },
+  {
+   "text": "o/r@/x",
+   "spec": null
+  },
+  {
+   "text": "https://gitlab.com/o/r",
+   "spec": null
+  }
+ ],
+ "manifests": [
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "espidi/a.bin"
+   },
+   "codes": []
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "espidi/a.bin",
+    "cover": "cover.png",
+    "sketch": "A",
+    "summary": {
+     "en": "x",
+     "ru": "y"
+    },
+    "name": "N"
+   },
+   "codes": []
+  },
+  {
+   "manifest": [],
+   "codes": [
+    "object"
+   ]
+  },
+  {
+   "manifest": null,
+   "codes": [
+    "object"
+   ]
+  },
+  {
+   "manifest": "x",
+   "codes": [
+    "object"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 2,
+    "firmware": "espidi/a.bin"
+   },
+   "codes": [
+    "format"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": true,
+    "firmware": "espidi/a.bin"
+   },
+   "codes": [
+    "format"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": "1",
+    "firmware": "espidi/a.bin"
+   },
+   "codes": [
+    "format"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1
+   },
+   "codes": [
+    "firmware"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "../a.bin"
+   },
+   "codes": [
+    "firmware"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "/a.bin"
+   },
+   "codes": [
+    "firmware"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "a//b.bin"
+   },
+   "codes": [
+    "firmware"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "a.BIN"
+   },
+   "codes": []
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "a\\b.bin"
+   },
+   "codes": [
+    "firmware"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "espidi/a.bin",
+    "cover": "c.jpg"
+   },
+   "codes": [
+    "cover"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "espidi/a.bin",
+    "cover": null
+   },
+   "codes": [
+    "cover"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "espidi/a.bin",
+    "summary": {
+     "en": 1
+    }
+   },
+   "codes": [
+    "summary"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "espidi/a.bin",
+    "summary": [
+     "x"
+    ]
+   },
+   "codes": [
+    "summary"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "espidi/a.bin",
+    "summary": null
+   },
+   "codes": [
+    "summary"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "espidi/a.bin",
+    "sketch": "a b"
+   },
+   "codes": [
+    "sketch"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "espidi/a.bin",
+    "name": "NNNNNNNNNNNNNNNNNNNNNNNN"
+   },
+   "codes": [
+    "text"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "espidi/a.bin",
+    "version": 1
+   },
+   "codes": [
+    "text"
+   ]
+  },
+  {
+   "manifest": {
+    "espidi": 1,
+    "firmware": "espidi/a.bin",
+    "id": "xxxxxxxxxxxxxxx"
+   },
+   "codes": []
+  },
+  {
+   "manifest": {
+    "firmware": 1,
+    "cover": 2,
+    "summary": 3,
+    "sketch": 4,
+    "author": 5
+   },
+   "codes": [
+    "format",
+    "firmware",
+    "cover",
+    "summary",
+    "sketch",
+    "text"
+   ]
+  }
+ ]
 }

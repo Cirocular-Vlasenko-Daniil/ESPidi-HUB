@@ -26,27 +26,13 @@ ESPIDI_FIRMWARE("myarp", "MY ARP", "1.0.0", "Your Name");
 
 `id` (max 15 characters, lowercase) is also your NVS namespace and your folder name. `name` and `author` max 23 characters, `version` max 15. A longer string is a compile error. Reserved ids — the HUB and the SDK use these NVS namespaces: `espidihub`, `espidi_pad`, `nimble_bond`.
 
-5. Optionally, give it a cover — see below.
+5. Optionally, give it a cover — see below — and make the repository ESPidi-ready (see Publishing): then the composer site installs it from a link.
 
 ## Cover
 
-When the HUB starts your firmware it shows a 64×32 picture on the left half of the screen, with the name and version next to it. Without a cover it shows just the name.
+When the HUB starts your firmware it shows a 64×32 picture next to the name and version; the composer site uses it as the firmware's thumbnail. Draw it black and white (white = lit), 64×32 or a multiple (128×64, …), without the name in it, save it as `cover.png` in your repository and name it in `espidi.json`. `cover.h` for the sketch is generated from it.
 
-- Draw 64×32 pixels, black and white: **white = lit**. A multiple of that (128×64, 192×96, …) also works — every 2×2, 3×3, … block becomes one pixel. Don't put the name in the picture; the HUB prints it next to it.
-- Turn it into a header and include it after `ESPidiHub.h`:
-
-```bash
-python3 tools/espidi_hub.py cover my-cover.png > MySketch/cover.h   # PNG or PBM; --invert for black-on-white art
-```
-
-```cpp
-#include <ESPidiHub.h>
-#include "cover.h"   // ESPIDI_COVER(0x00, 0x1f, …) — 256 bytes
-```
-
-- Already have an Adafruit `drawBitmap()` array of a 64×32 image (image2cpp: *Horizontal – 1 bit per pixel*)? It is the same format: `ESPIDI_COVER(<the 256 bytes>);`.
-- The cover costs 268 bytes of flash. `check` says whether a firmware has one.
-- Users can replace or remove it when they install: `install --cover picture.png` / `--no-cover`, or in the web composer. A catalog entry can have its own cover (`"cover": "name.cover.png"`).
+Everything about covers — drawing, where they come from, checking, the format: **[sdk/ESPidiHub/COVERS.md](../sdk/ESPidiHub/COVERS.md)**.
 
 ## Rules
 
@@ -135,7 +121,45 @@ Or without a terminal: the composer site takes your `.bin` (“My file”) and w
 
 ## Publishing
 
-Copy `templates/arduino-firmware/.github/workflows/firmware.yml` into your repository and set `SKETCH`. On every push it builds the `.bin` and runs `check`; on a `v*` tag it attaches the `.bin` to the release.
+Make your repository **ESPidi-ready** and anyone can install your firmware by pasting its address into the composer site (tab **GitHub**) or with `espidi_hub.py install --slot N owner/repo`. Name, version, cover and description come from the repository; nothing has to be uploaded anywhere else.
+
+An ESPidi-ready repository has `espidi.json` at its root (or in a folder — then link to that folder):
+
+```json
+{
+  "espidi": 1,
+  "sketch": "MyArp",
+  "firmware": "espidi/MyArp.ino.bin",
+  "cover": "cover.png",
+  "summary": { "en": "Arpeggiator with 8 patterns.", "ru": "Арпеджиатор на 8 паттернов." }
+}
+```
+
+| Field | |
+|---|---|
+| `espidi` | required, `1` |
+| `firmware` | required: the built app image **committed to the repository**, path relative to `espidi.json` |
+| `cover` | 64×32 PNG (or a multiple) — [COVERS.md](../sdk/ESPidiHub/COVERS.md) |
+| `sketch` | the sketch folder: the workflow builds it, `--sync-cover` writes `<sketch>/cover.h` |
+| `summary` | one or two sentences, text or `{"en": …, "ru": …}` |
+| `id`, `name`, `version`, `author` | only for firmwares without `ESPIDI_FIRMWARE()`; otherwise the descriptor wins |
+
+Why the `.bin` is in the repository and not only in Releases: a web page cannot download GitHub release files (they come without CORS headers), but it can read files of the repository.
+
+**The easy way:** start from `templates/arduino-firmware` — it already is an ESPidi-ready repository, with the workflow. On every push the workflow makes `cover.h` from `cover.png`, builds, checks, and **when the version in `ESPIDI_FIRMWARE()` (or the cover) changed, commits the build** to the `firmware` path. So publishing a new version = changing the version string and pushing. On a `v*` tag it also attaches the `.bin` to a release.
+
+**By hand:** build (Arduino IDE: Sketch → Export Compiled Binary), copy `<sketch>.ino.bin` to the `firmware` path, commit, push.
+
+**Check what others will get:**
+
+```bash
+python3 tools/espidi_hub.py repo .              # your checkout
+python3 tools/espidi_hub.py repo owner/repo     # what the site loads from GitHub
+```
+
+**Branches and folders:** `owner/repo@beta` loads the `beta` branch (or a tag, or a commit); a link like `https://github.com/owner/repo/tree/beta/firmware` loads `espidi.json` from the `firmware` folder of `beta`. A link that opens the composer with your firmware in a slot: `https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/?play=owner/repo` (`page=` for slot 2) — handy for your README.
+
+To be listed in the composer's catalog, open a pull request adding `{"source": "owner/repo", "channel": "stable", …}` to `web/catalog/catalog.json`.
 
 ## ESP-IDF firmwares
 
@@ -161,3 +185,4 @@ The shared file system is the data partition labelled `spiffs` (LittleFS); NVS i
 - [ ] Power cycle → HUB; your restart → your firmware; `rebootToHub()` → HUB.
 - [ ] Files (if used) live in `/<id>/` and survive a reinstall of the other slot.
 - [ ] Nothing in the code formats, erases or does OTA.
+- [ ] `repo owner/repo` passes: the composer can load the published version with its cover.

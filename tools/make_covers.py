@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Draws the catalog covers (web/catalog/*.cover.png) and the template's cover.h.
+"""Draws the catalog covers (web/catalog/*.cover.png) and the template's cover.png + cover.h.
 
 Covers are 64x32, 1 bit: a 1-bit grayscale PNG row is exactly a cover row (8 bytes, MSB first,
 1 = white = lit), so the PNG and ESPIDI_COVER() hold the same bytes."""
+import json
 import math
 import os
 import re
-import struct
 import sys
-import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -73,14 +72,8 @@ class Canvas:
 
 
 def write_png(path, bits):
-    raw = b"".join(b"\x00" + bits[y * 8:(y + 1) * 8] for y in range(H))
-
-    def chunk(t, d):
-        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d))
-
     with open(path, "wb") as f:
-        f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", W, H, 1, 0, 0, 0, 0)) +
-                chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+        f.write(hub.cover_png(bits))
 
 
 def disc(c, cx, cy, r, on=True):
@@ -124,16 +117,19 @@ def template():
 
 def main():
     catalog = os.path.join(ROOT, "web", "catalog")
-    covers = {"redsea.cover.png": red_sea(), "redsea-beta.cover.png": red_sea(beta=True),
-              "template.cover.png": template()}
-    for name, bits in covers.items():
-        write_png(os.path.join(catalog, name), bits)
-        assert hub.load_cover(os.path.join(catalog, name)) == bits
-        print(f"{name}\n{hub.cover_ascii(bits)}\n")
-    with open(os.path.join(ROOT, "templates", "arduino-firmware", "ESPidiTemplate", "cover.h"), "w") as f:
-        f.write("// Make your own: python3 tools/espidi_hub.py cover my-cover.png > cover.h\n"
-                "// (PNG or PBM, 64x32 or a multiple of it; white pixels are lit, --invert for black-on-white art)\n")
-        f.write(hub.cover_header(covers["template.cover.png"], "template.cover.png"))
+    template_repo = os.path.join(ROOT, "templates", "arduino-firmware")
+    # RED SEA's covers live in the catalog until its repository has an espidi.json; the
+    # template is an ESPidi-ready repository, so its cover.png is the source and cover.h follows it.
+    covers = {os.path.join(catalog, "redsea.cover.png"): red_sea(),
+              os.path.join(catalog, "redsea-beta.cover.png"): red_sea(beta=True),
+              os.path.join(template_repo, "cover.png"): template()}
+    for path, bits in covers.items():
+        write_png(path, bits)
+        assert hub.load_cover(path) == bits
+        print(f"{os.path.relpath(path, ROOT)}\n{hub.cover_ascii(bits)}\n")
+    with open(os.path.join(template_repo, hub.MANIFEST)) as f:
+        manifest = json.load(f)
+    print(hub.sync_cover(template_repo, manifest, hub.load_cover(os.path.join(template_repo, manifest["cover"]))))
 
 
 if __name__ == "__main__":

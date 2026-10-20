@@ -25,7 +25,7 @@ All firmwares share 16 KB of settings storage (NVS) and a 1 MB LittleFS partitio
 
 ## Composer (web)
 
-**[cirocular-vlasenko-daniil.github.io/ESPidi-HUB](https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/)** — pick a firmware for each slot from the catalog or load your own `.bin`, give it a cover (the firmware's own, or any picture — 64×32 and its multiples go pixel for pixel, anything else is scaled and dithered), see how the flash is shared and what the HUB will show, then:
+**[cirocular-vlasenko-daniil.github.io/ESPidi-HUB](https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/)** — pick a firmware for each slot from the catalog, **paste a GitHub repository** made with the SDK (`owner/repo` — the firmware, its cover and description come straight from it) or load your own `.bin`, give it a cover (the firmware's own, or any picture — 64×32 and its multiples go pixel for pixel, anything else is scaled and dithered), see how the flash is shared and what the HUB will show, then:
 
 - **write it to the ESPidi over USB** right from the browser (Chrome, Edge or Opera on a computer): a full install, or an update of the slots that keeps settings and files;
 - or **download one image** for a fresh install with any flashing tool (`esptool --chip esp32c3 write_flash 0x0 espidi-custom.bin`).
@@ -43,6 +43,7 @@ python3 tools/espidi_hub.py base -p /dev/cu.usbmodem1101
 # put firmwares into the slots
 python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 1 REDSEA.ino.bin
 python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 other.bin --cover other.png
+python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 owner/repo   # an ESPidi-ready repository
 
 # what is installed
 python3 tools/espidi_hub.py info -p /dev/cu.usbmodem1101
@@ -54,8 +55,8 @@ python3 tools/espidi_hub.py info -p /dev/cu.usbmodem1101
 
 - [docs/FIRMWARE_GUIDE.md](docs/FIRMWARE_GUIDE.md) — rules, pins, storage, size, build, publishing ([на русском](docs/FIRMWARE_GUIDE.ru.md)).
 - [AGENTS.md](AGENTS.md) — the same rules as a checklist for AI coding agents.
-- `sdk/ESPidiHub` — Arduino library: pin map, `ESPIDI_FIRMWARE()` descriptor, safe file storage, `rebootToHub()`.
-- `templates/arduino-firmware` — a starting sketch and a GitHub Actions workflow that builds and checks the `.bin`.
+- `sdk/ESPidiHub` — Arduino library: pin map, `ESPIDI_FIRMWARE()` descriptor, `ESPIDI_COVER()`, safe file storage, `rebootToHub()`. Covers: [sdk/ESPidiHub/COVERS.md](sdk/ESPidiHub/COVERS.md).
+- `templates/arduino-firmware` — an ESPidi-ready repository to copy: sketch, `espidi.json`, `cover.png` and a GitHub Actions workflow that builds, checks and publishes the `.bin` so the composer installs it from a link.
 
 ## Repository
 

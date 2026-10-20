@@ -143,9 +143,31 @@ Static site on GitHub Pages. `espidi.js` is a port of the installer (layout, par
 - **Write — full install:** erase the chip, then bootloader, HUB, slot images, partition table, slot info (the same order as the CLI). Needs the HUB build in `web/hub/` (`manifest.json` + the two binaries).
 - **Write — update:** reads the table and slot info from the board; each slot is *keep*, *replace* or *empty*; writes only the changed images, a blank placeholder for an emptied slot, then the table and slot info. NVS and files stay. Slots that are empty in the composition default to *keep* when a board with the HUB is connected, so an update never deletes a firmware by accident.
 - **Download:** one image from `0x0` to the end of the firmware area (same bytes as `espidi_hub.py image`); flashing it at `0x0` clears NVS, the file partition is not touched.
-- **Catalog:** `web/catalog/catalog.json` with the binaries next to it (GitHub release downloads are not CORS-enabled, so Pages serves them). `tools/update_catalog.py` fills sizes and SHA-256; the site verifies the checksum after downloading.
-- **Covers:** per slot — the firmware's own (catalog `cover` PNG, else the one inside the image, else on an update the one already on the board), a picture the user uploads, or none. 64×32 and exact multiples are converted pixel for pixel exactly as `espidi_hub.py cover` does (checked by `test.html`); any other size is scaled to fit and dithered (Atkinson), which only the site does. Changing only the cover of a kept firmware rewrites just the table and the metadata sector.
+- **Catalog:** `web/catalog/catalog.json` with the binaries next to it (GitHub release downloads are not CORS-enabled, so Pages serves them). `tools/update_catalog.py` fills sizes and SHA-256 and syncs entries that have a `source` (an ESPidi-ready repository) — firmware, cover, name, version, summary, commit; the site verifies the checksum after downloading.
+- **GitHub tab:** loads a firmware live from an ESPidi-ready repository (below), `github.js`. Share links: `?play=<spec>&page=<spec>` load repositories into the slots; the address bar follows the GitHub slots. The last six repositories are remembered in `localStorage`.
+- **Covers:** per slot — the firmware's own (catalog `cover` PNG, the repository's `cover`, else the one inside the image, else on an update the one already on the board), a picture the user uploads, or none. 64×32 and exact multiples are converted pixel for pixel exactly as `espidi_hub.py cover` does (checked by `test.html`); any other size is scaled to fit and dithered (Atkinson), which only the site does. Changing only the cover of a kept firmware rewrites just the table and the metadata sector.
 - The preview draws the HUB menu and both start screens with the HUB's own font (`font.js`, generated from `font.c`).
+
+## ESPidi-ready repositories
+
+A firmware repository becomes installable from a link when it has `espidi.json` (at the root or in a folder):
+
+| Key | Type | |
+|---|---|---|
+| `espidi` | `1` | required; the format number |
+| `firmware` | path to a `.bin` | required; the app image committed in the repository |
+| `cover` | path to a `.png` | 64×32 or an exact multiple |
+| `sketch` | folder name | for the workflow and `repo --sync-cover` |
+| `summary` | text or `{lang: text}` | |
+| `id` ≤ 15, `name` ≤ 23, `version` ≤ 15, `author` ≤ 23 | text | fallbacks for images without the descriptor |
+
+Paths are relative to `espidi.json`, `/`-separated, without `.`/`..`/empty segments. Problem codes (same in `check_manifest()` and `validateManifest()`): `object`, `format`, `firmware`, `cover`, `summary`, `sketch`, `text`.
+
+**Spec** of a repository: `owner/repo[/folder][@ref]`, a `github.com/owner/repo[/tree|blob/<ref>/<folder>]` link, or a `raw.githubusercontent.com/owner/repo/<ref>/<folder>/espidi.json` link. A `/tree/` link takes the first segment after `tree` as the ref; a branch with `/` in its name needs the `@` form.
+
+**Loading** (`github.js`, `GithubRepo` in Python): resolve the ref to a commit through the GitHub API (`GET /repos/{o}/{r}/commits/{ref}`, `Accept: application/vnd.github.sha`; 404 → no repository, 422 → no such ref; on rate limit or network failure the files are read by the ref name), then read `espidi.json`, the firmware and the cover of that commit from `raw.githubusercontent.com`, falling back to jsDelivr (`cdn.jsdelivr.net/gh/{o}/{r}@{sha}/…`) when raw is unreachable. A 404 is final. Release assets are not used: they are served without CORS headers.
+
+**Publishing** (`templates/arduino-firmware/.github/workflows/firmware.yml`): `repo . --sync-cover` → build → `repo . --build BIN` → `repo . --build BIN --publish` copies the build to `firmware` when there is none yet, or its descriptor version or embedded cover differs from the committed one (builds of the same version differ only by timestamps, so that would commit on every push) → the workflow commits and pushes it with the workflow token (such commits don't trigger workflows).
 
 ## Planned
 - BLE controller support (`sdk/ESPidiPad`, first target: the M-VAVE SMC-PAD, based on a reverse-engineered protocol). Lives in the firmware, not in the HUB — only one app runs at a time, so the HUB cannot keep a connection for a firmware. A separate optional library (NimBLE central) so firmwares without a pad don't carry the BLE stack (~200–300 KB). Layers: BLE MIDI transport → device profile (pads/encoders/LEDs) → events delivered in `loop()`. The pad's address is stored once in the NVS namespace `espidi_pad`, so every firmware reconnects without scanning; the HUB menu can offer "forget pad" without needing BLE itself.
