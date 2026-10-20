@@ -1,0 +1,52 @@
+{
+  "format": 1,
+  "firmwares": [
+    {
+      "id": "redsea",
+      "name": "RED SEA",
+      "version": "1.0",
+      "channel": "stable",
+      "author": "Daniil Vlasenko",
+      "summary": {
+        "en": "Weather-themed algorithmic MIDI sequencer and CC modulator: FOG, SUN, RAIN and SNOW engines, 16-step sequencer.",
+        "ru": "Алгоритмический MIDI-секвенсор и CC-модулятор на погодных движках FOG, SUN, RAIN и SNOW, 16 шагов."
+      },
+      "file": "redsea-1.0.bin",
+      "screen": "redsea.png",
+      "repo": "https://github.com/Cirocular-Vlasenko-Daniil/Red-Sea",
+      "size": 419984,
+      "sha256": "f5dace54ab972e25755ec5c1820383c5d9121f7dbf6219cf0f37420be137f89f"
+    },
+    {
+      "id": "redsea",
+      "name": "RED SEA",
+      "version": "1.1 beta",
+      "channel": "beta",
+      "author": "Daniil Vlasenko",
+      "summary": {
+        "en": "1.0 plus per-parameter MIDI channels, note length, Freeze Roll, swing and the TWST engine. Under testing.",
+        "ru": "1.0 плюс MIDI-каналы на каждый параметр, длина нот, Freeze Roll, свинг и движок TWST. В тестировании."
+      },
+      "file": "redsea-1.1-beta.bin",
+      "screen": "redsea.png",
+      "repo": "https://github.com/Cirocular-Vlasenko-Daniil/Red-Sea/tree/beta",
+      "size": 431488,
+      "sha256": "b596fdf7324c17ec4a9bb910b58772b2876d47c7d6d020a7287e2c59ef5dc49d"
+    },
+    {
+      "id": "template",
+      "name": "TEMPLATE",
+      "version": "0.1.0",
+      "channel": "example",
+      "author": "ESPidi HUB",
+      "summary": {
+        "en": "SDK example: buttons, MIDI out, settings, files, a long press on the encoder goes back to the HUB.",
+        "ru": "Пример SDK: кнопки, MIDI-выход, настройки, файлы, долгое нажатие энкодера — назад в HUB."
+      },
+      "file": "template-0.1.0.bin",
+      "repo": "https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/tree/main/templates/arduino-firmware",
+      "size": 397472,
+      "sha256": "dba7b968b5fba34ade323ef2e1056588df7758824c54386e6a9b214ad3200d29"
+    }
+  ]
+}

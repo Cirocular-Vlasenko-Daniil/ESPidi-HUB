@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESPidi HUB Composer</title>
+<meta name="description" content="Put two firmwares on an ESPidi board and write them over USB from the browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0f10'/%3E%3Crect x='3' y='4' width='4' height='8' fill='%235fd4c4'/%3E%3Crect x='9' y='4' width='4' height='8' fill='%23f2b25c'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <canvas id="logo" width="120" height="14" aria-label="ESPidi HUB"></canvas>
+  <div class="heading">
+    <h1 data-i18n="title">Firmware composer</h1>
+    <p data-i18n="subtitle"></p>
+  </div>
+  <div class="lang" role="group" aria-label="Language">
+    <button type="button" data-lang="ru">RU</button>
+    <button type="button" data-lang="en">EN</button>
+  </div>
+</header>
+
+<main>
+  <div id="notices"></div>
+
+  <section class="slots">
+    <article class="slot card" data-slot="0"></article>
+    <article class="slot card" data-slot="1"></article>
+  </section>
+
+  <section class="card map">
+    <h2 data-i18n="map_title">Flash memory</h2>
+    <div id="map" class="mapbar" role="img"></div>
+    <p id="map-legend" class="legend"></p>
+  </section>
+
+  <section class="bottom">
+    <section class="card preview">
+      <h2 data-i18n="preview_title">On the screen</h2>
+      <div class="oled"><canvas id="oled" width="128" height="32"></canvas></div>
+      <p class="muted" data-i18n="preview_hint"></p>
+    </section>
+
+    <section class="card write">
+      <h2 data-i18n="write_title">Write</h2>
+      <div id="device"></div>
+      <div id="modes" class="modes"></div>
+      <div class="actions">
+        <button type="button" id="write" class="primary" data-i18n="write_btn">Write to ESPidi</button>
+        <button type="button" id="download" data-i18n="download_btn">Download image</button>
+      </div>
+      <div id="download-hint" class="hint" hidden></div>
+      <div class="progress" id="progress" hidden><div></div></div>
+      <pre id="log" class="log" hidden></pre>
+    </section>
+  </section>
+</main>
+
+<footer>
+  <a href="https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/blob/main/docs/FIRMWARE_GUIDE.md" data-i18n="footer_guide">Writing firmwares</a>
+  <a href="https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/blob/main/web/catalog/catalog.json" data-i18n="footer_catalog">Add yours to the catalog</a>
+  <a href="https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB" data-i18n="footer_source">Source</a>
+  <span class="muted">ESPidi hardware: <a href="https://github.com/EugeneCarlo/ESPidi">Eugene Carlo</a></span>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
