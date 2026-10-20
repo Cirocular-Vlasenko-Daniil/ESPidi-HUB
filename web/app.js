@@ -1,10 +1,10 @@
 // ESPidi HUB composer: pick two firmwares and their covers, see where they go, write them over USB
 // or download one image.
 import * as E from "./espidi.js";
-import { GLYPHS } from "./font.js";
 import { t, setLang, getLang, detectLang, saveLang } from "./i18n.js";
 import { Device, webSerialSupported } from "./flasher.js";
 import * as G from "./github.js";
+import { drawText, cssVar, renderLogo } from "./pixels.js";
 
 const BUTTON = ["PLAY", "PAGE"];
 const HUB_VERSION = "0.1.0";
@@ -270,18 +270,8 @@ function problemText(p) {
 }
 
 // ---------------------------------------------------------------------------
-// Pixel text in the HUB's own 5x7 font
+// Pixel text in the HUB's own 5x7 font (drawText in pixels.js)
 // ---------------------------------------------------------------------------
-function drawText(ctx, x, y, s, scale = 1) {
-  for (const ch of s.toUpperCase()) {
-    const rows = GLYPHS[ch] || GLYPHS["?"];
-    rows.forEach((row, r) => {
-      for (let c = 0; c < 5; c++) if (row & (0x10 >> c)) ctx.fillRect(x + c * scale, y + r * scale, scale, scale);
-    });
-    x += 6 * scale;
-  }
-}
-
 const textWidth = (s, scale) => (s.length ? (s.length * 6 - 1) * scale : 0);
 const drawCenter = (ctx, y, s, scale) => drawText(ctx, Math.trunc((128 - textWidth(s, scale)) / 2), y, s, scale);
 
@@ -289,16 +279,6 @@ function drawBits(ctx, x, y, bits) {
   for (let j = 0; j < E.COVER_H; j++) {
     for (let k = 0; k < E.COVER_W; k++) if (E.coverPixel(bits, k, j)) ctx.fillRect(x + k, y + j, 1, 1);
   }
-}
-
-const cssVar = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
-
-function renderLogo() {
-  const cv = $("#logo");
-  const ctx = cv.getContext("2d");
-  ctx.clearRect(0, 0, cv.width, cv.height);
-  ctx.fillStyle = cssVar("--fg", "#fff");
-  drawText(ctx, 1, 0, "ESPIDI HUB", 2);
 }
 
 function paintCover(cv, bits) {
@@ -850,7 +830,7 @@ document.querySelectorAll(".lang button").forEach((b) => b.addEventListener("cli
 
 // ---------------------------------------------------------------------------
 setLang(detectLang());
-renderLogo();
+renderLogo($("#logo"));
 const params = new URLSearchParams(location.search);
 ["play", "page"].forEach((key, i) => { if (params.get(key)) loadGithub(i, params.get(key)); });
 render();

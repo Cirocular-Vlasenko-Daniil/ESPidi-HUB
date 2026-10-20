@@ -81,7 +81,7 @@ If the user can test on hardware, ask them to confirm: both slots start, setting
 | `tools/espidi_hub.py` | installer, layout math, partition table / metadata / image formats |
 | `tools/tests/` | unit tests (`python3 -m unittest discover -s tools/tests`) |
 | `sdk/ESPidiHub/` | Arduino library for firmwares |
-| `web/` | composer site, https://espidi-hub.github.io/ (repository `espidi-hub/espidi-hub.github.io`; publish: `git push https://github.com/espidi-hub/espidi-hub.github.io.git $(git subtree split --prefix web):refs/heads/main`): `espidi.js` = port of `tools/espidi_hub.py`, `github.js` (ESPidi-ready repositories = `parse_spec`/`check_repo` in Python), `flasher.js` (esptool-js, vendored), `app.js` UI, `i18n.js` RU/EN, `catalog/` |
+| `web/` | composer site, https://espidi-hub.github.io/ (repository `espidi-hub/espidi-hub.github.io`; publish: `git push https://github.com/espidi-hub/espidi-hub.github.io.git $(git subtree split --prefix web):refs/heads/main`): `espidi.js` = port of `tools/espidi_hub.py`, `github.js` (ESPidi-ready repositories = `parse_spec`/`check_repo` in Python), `flasher.js` (esptool-js, vendored), `app.js` UI, `i18n.js` RU/EN, `pixels.js` (HUB-font text and the logo, both pages), `espidi.html` + `about.js` (the "What is ESPidi" page; `board.js` draws the board, its icon traced from a photo by `tools/trace_board_icon.py`), `catalog/` |
 | `sdk/ESPidiHub/COVERS.md` | covers for firmware authors (EN, RU) |
 | `templates/arduino-firmware/` | an ESPidi-ready firmware repository (the reference for `espidi.json`) |
 | `sdk/ESPidiPad/` | Bluetooth SMC-PAD Pro library: `src/PadCore.h` (no BLE, host-tested), `src/ESPidiPad.cpp` (BLE), `src/SmcPadProtocol.h` = a copy of the kit's, `extras/smc_pad_ble/` = the kit, unchanged |

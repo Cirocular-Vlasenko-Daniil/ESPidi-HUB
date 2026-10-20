@@ -52,6 +52,7 @@ button, input { font: inherit; color: inherit; }
 /* ----------------------------------------------------------------- header */
 .top { display: flex; align-items: center; gap: 18px; padding-top: 28px; padding-bottom: 20px; }
 #logo { width: 240px; image-rendering: pixelated; flex: none; }
+.home { flex: none; display: block; line-height: 0; }
 .heading { flex: 1; min-width: 0; }
 .heading h1 { margin: 0; font: 1.25em/1.2 var(--font-head); text-transform: uppercase; letter-spacing: 0.04em; }
 .heading p { margin: 4px 0 0; }
@@ -227,5 +228,22 @@ button:disabled { cursor: not-allowed; border-style: dashed; background: none; c
 .progress div { height: 100%; width: 0; --pat: url(px/d75.svg); transition: width 0.15s steps(8); }
 
 .log { margin: 0; max-height: 180px; overflow: auto; border: var(--line) dotted var(--fg); padding: 8px 10px; white-space: pre-wrap; font-size: 0.85em; }
+
+/* ------------------------------------------------------------ about */
+.about-body { display: grid; grid-template-columns: minmax(0, 576px) minmax(0, 1fr); gap: 24px; align-items: center; }
+#board { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.about-text p { margin: 0; }
+.quote { position: relative; margin: 18px 0 0; padding: 2px 0 2px 22px; }
+.quote::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: var(--px);
+  background: var(--fg);
+  -webkit-mask: url(px/d50.svg) 0 0 / var(--px) var(--px) repeat;
+  mask: url(px/d50.svg) 0 0 / var(--px) var(--px) repeat;
+}
+.quote cite { display: block; margin-top: 8px; font-style: normal; }
+@media (max-width: 900px) { .about-body { grid-template-columns: minmax(0, 1fr); } }
 
 footer { display: flex; gap: 18px; flex-wrap: wrap; padding-bottom: 40px; font-size: 0.9em; }
