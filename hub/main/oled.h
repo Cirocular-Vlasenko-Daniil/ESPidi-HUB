@@ -3,6 +3,7 @@
 // If the display is missing, every call is a no-op and the HUB still works.
 #pragma once
 #include <stdbool.h>
+#include <stdint.h>
 
 #define OLED_W 128
 #define OLED_H 32
@@ -13,6 +14,8 @@ void oled_pixel(int x, int y, bool on);
 void oled_fill_rect(int x, int y, int w, int h, bool on);
 void oled_rect(int x, int y, int w, int h, bool on);
 int  oled_text(int x, int y, const char *s, int scale, bool on);  // returns x after the text
+// 1-bit bitmap, rows top to bottom, MSB = leftmost pixel (Adafruit drawBitmap format).
+void oled_bitmap(int x, int y, int w, int h, const uint8_t *bits);
 int  oled_text_width(const char *s, int scale);
 void oled_text_center(int y, const char *s, int scale, bool on);
 void oled_flush(void);

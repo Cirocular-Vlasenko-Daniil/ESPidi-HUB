@@ -1,6 +1,5 @@
 /* ESPidi HUB composer — black and white, in the style of the ESPidi OLED.
-   Four designs on the same markup: <html data-design="oled | matrix | dither | freeze">.
-   Patterns (px/*.svg) are 4x4 masks painted with the current foreground. */
+   Patterns (px/*.svg) are 4x4 masks painted with the foreground colour. */
 
 :root {
   --fg: #fff;
@@ -16,37 +15,15 @@
   color-scheme: dark;
 }
 
-:root[data-design="matrix"] {
-  --font: "Handjet", ui-monospace, monospace;
-  --size: 21px;
-}
-
-:root[data-design="dither"] {
-  --font: "Pixelify Sans", ui-monospace, monospace;
-  --size: 16px;
-}
-
-:root[data-design="freeze"] {
-  --fg: #000;
-  --bg: #fff;
-  --oled-fg: #000;
-  --oled-bg: #fff;
-  --font: "DotGothic16", ui-monospace, monospace;
-  --font-head: "Press Start 2P", ui-monospace, monospace;
-  --size: 15px;
-  color-scheme: light;
-}
-
 * { box-sizing: border-box; }
 
-/* Background on html only: a body background would cover the dithered shadows (z-index -1). */
 html { background: var(--bg); }
 
 body {
   margin: 0;
   color: var(--fg);
   font: var(--size)/1.45 var(--font);
-  font-variant-ligatures: none;   /* Pixelify Sans draws "fi"/"fl" as one odd glyph */
+  font-variant-ligatures: none;
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
   font-smooth: never;
@@ -147,6 +124,14 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); pa
 .fw .meta { text-align: right; }
 .fw .name, .fw .meta, .fw .summary { min-width: 0; overflow-wrap: anywhere; }
 .fw .summary { grid-column: 1 / -1; font-size: 0.88em; }
+.fw.has-thumb { grid-template-columns: auto minmax(0, 1fr) auto; }
+.fw.has-thumb .summary { grid-column: 2 / -1; }
+.thumb { grid-row: 1 / span 2; width: 100px; height: 54px; padding: 3px; background: var(--oled-bg); border: var(--line) solid currentColor; image-rendering: pixelated; align-self: start; }
+@media (max-width: 760px) {
+  .fw.has-thumb { grid-template-columns: auto minmax(0, 1fr); }
+  .fw.has-thumb .meta { text-align: left; }
+  .fw.has-thumb .summary { grid-column: 1 / -1; }
+}
 .tag { font-family: var(--font); font-size: 0.8em; border: 1px solid currentColor; padding: 0 4px; margin-left: 8px; text-transform: uppercase; }
 
 .drop { display: block; border: var(--line) dashed var(--fg); padding: 18px 12px; text-align: center; cursor: pointer; }
@@ -155,12 +140,26 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); pa
 
 .fields { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
 .fields label { display: grid; gap: 3px; font-size: 0.85em; text-transform: uppercase; }
-.fields input { border: var(--line) solid var(--fg); background: var(--bg); padding: 4px 8px; text-transform: none; }
+.fields input { border: var(--line) solid var(--fg); background: var(--bg); padding: 4px 8px; text-transform: none; width: 100%; min-width: 0; }
 
 .slot-foot { margin-top: auto; padding-top: 10px; border-top: var(--line) dotted var(--fg); }
 .slot-foot .what { font-family: var(--font-head); text-transform: uppercase; }
+/* cover: 64x32 shown x2 */
+.cover-box { display: flex; gap: 12px; align-items: flex-start; margin-top: 10px; }
+.cover-pic { flex: none; display: block; padding: 4px; background: var(--oled-bg); border: var(--line) solid var(--fg); cursor: pointer; }
+.cover-pic canvas, .cover-empty { display: block; width: 128px; height: 64px; image-rendering: pixelated; }
+.cover-empty { display: flex; align-items: center; justify-content: center; --pat: url(px/d12.svg); }
+.cover-empty span { background: var(--oled-bg); padding: 0 4px; }
+.cover-pic input { display: none; }
+.cover-box.over .cover-pic { outline: var(--line) dashed var(--fg); outline-offset: 3px; }
+.cover-info { min-width: 0; display: grid; gap: 4px; }
+.cover-title { text-transform: uppercase; }
+.cover-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.cover-actions button { border: var(--line) solid var(--fg); background: none; padding: 0 8px; cursor: pointer; text-transform: uppercase; font-size: 0.85em; }
+.cover-actions button:hover { background: var(--fg); color: var(--bg); }
+.slot-foot > .hint { margin-top: 6px; }
+
 .shot { display: block; width: 100%; max-width: 264px; margin-top: 10px; image-rendering: pixelated; border: var(--line) solid var(--fg); }
-:root[data-design="freeze"] .shot { filter: invert(1); }
 .err::before { content: "× "; }
 .ok::before { content: "✓ "; }
 .hint { font-size: 0.88em; }
@@ -192,6 +191,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); pa
 .legend.err { font-weight: 600; }
 
 /* -------------------------------------------------------- OLED preview */
+.preview .tabs { margin-bottom: 10px; }
 .oled { border: var(--line) solid var(--fg); padding: 14px; background: var(--oled-bg); }
 .oled canvas { display: block; width: 100%; image-rendering: pixelated; }
 
@@ -220,96 +220,3 @@ button:disabled { cursor: not-allowed; border-style: dashed; background: none; c
 .log { margin: 0; max-height: 180px; overflow: auto; border: var(--line) dotted var(--fg); padding: 8px 10px; white-space: pre-wrap; font-size: 0.85em; }
 
 footer { display: flex; gap: 18px; flex-wrap: wrap; padding-bottom: 40px; font-size: 0.9em; }
-.designs { display: flex; gap: 6px; align-items: center; margin-left: auto; text-transform: uppercase; }
-.designs a { text-decoration: none; border: 1px solid var(--fg); padding: 0 6px; }
-.designs a[aria-current="true"] { background: var(--fg); color: var(--bg); }
-
-/* ================================================================ MATRIX
-   Dot-matrix display: a grid of dim dots behind everything, glowing text,
-   dotted frames. */
-:root[data-design="matrix"] {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1.3px);
-  background-size: 5px 5px;
-}
-:root[data-design="matrix"] body { text-shadow: 0 0 5px rgba(255, 255, 255, 0.55); }
-:root[data-design="matrix"] .card,
-:root[data-design="matrix"] .fw,
-:root[data-design="matrix"] .tabs button,
-:root[data-design="matrix"] .mapbar,
-:root[data-design="matrix"] .lang { border-style: dotted; }
-:root[data-design="matrix"] .card { background: transparent; }
-:root[data-design="matrix"] .card h2,
-:root[data-design="matrix"] .slot-head { background: none; color: var(--fg); border-bottom: var(--line) dotted var(--fg); }
-:root[data-design="matrix"] .slot-head .muted { color: var(--fg); }
-:root[data-design="matrix"] .fw[aria-pressed="true"],
-:root[data-design="matrix"] .tabs button[aria-pressed="true"],
-:root[data-design="matrix"] .lang button[aria-pressed="true"],
-:root[data-design="matrix"] button.primary { text-shadow: none; box-shadow: 0 0 12px rgba(255, 255, 255, 0.45); }
-:root[data-design="matrix"] .oled { background: #000; }
-:root[data-design="matrix"] .oled canvas { filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.7)); }
-:root[data-design="matrix"] .heading h1 { font-weight: 600; letter-spacing: 0.08em; }
-
-/* ================================================================ DITHER
-   Bayer-dithered drop shadows and bands, RED SEA corner cursors instead of
-   inverted selection. */
-:root[data-design="dither"] .card::after {
-  content: "";
-  position: absolute;
-  inset: 8px -10px -10px 8px;
-  z-index: -1;
-  background: var(--fg);
-  -webkit-mask: url(px/d50.svg) 0 0 / var(--px) var(--px) repeat;
-  mask: url(px/d50.svg) 0 0 / var(--px) var(--px) repeat;
-}
-:root[data-design="dither"] main { gap: 26px; }
-:root[data-design="dither"] .slots, :root[data-design="dither"] .bottom { gap: 26px; }
-:root[data-design="dither"] .top { position: relative; margin-bottom: 18px; }
-:root[data-design="dither"] .top::after {
-  content: "";
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: -6px;
-  height: 10px;
-  background: var(--fg);
-  -webkit-mask: url(px/d25.svg) 0 0 / var(--px) var(--px) repeat;
-  mask: url(px/d25.svg) 0 0 / var(--px) var(--px) repeat;
-}
-:root[data-design="dither"] .fw[aria-pressed="true"],
-:root[data-design="dither"] .tabs button[aria-pressed="true"] { background: none; color: var(--fg); }
-:root[data-design="dither"] .fw[aria-pressed="true"]::after,
-:root[data-design="dither"] .tabs button[aria-pressed="true"]::after {
-  content: "";
-  position: absolute;
-  inset: -6px;
-  pointer-events: none;
-  --c: var(--fg);
-  --l: 10px;
-  --w: 3px;
-  background:
-    linear-gradient(var(--c), var(--c)) 0 0 / var(--l) var(--w),
-    linear-gradient(var(--c), var(--c)) 0 0 / var(--w) var(--l),
-    linear-gradient(var(--c), var(--c)) 100% 0 / var(--l) var(--w),
-    linear-gradient(var(--c), var(--c)) 100% 0 / var(--w) var(--l),
-    linear-gradient(var(--c), var(--c)) 0 100% / var(--l) var(--w),
-    linear-gradient(var(--c), var(--c)) 0 100% / var(--w) var(--l),
-    linear-gradient(var(--c), var(--c)) 100% 100% / var(--l) var(--w),
-    linear-gradient(var(--c), var(--c)) 100% 100% / var(--w) var(--l);
-  background-repeat: no-repeat;
-}
-:root[data-design="dither"] .tabs button { position: relative; }
-:root[data-design="dither"] .tabs { gap: 12px; }
-:root[data-design="dither"] .fw { border-style: dotted; }
-:root[data-design="dither"] .fw[aria-pressed="true"] { border-style: solid; }
-:root[data-design="dither"] .catalog { gap: 14px; }
-
-/* ================================================================ FREEZE
-   Inverted, like the RED SEA screen in FREEZE: black pixels on white. */
-:root[data-design="freeze"] .heading h1 { font-size: 0.95em; line-height: 1.5; }
-:root[data-design="freeze"] .card h2,
-:root[data-design="freeze"] .slot-head,
-:root[data-design="freeze"] .badge,
-:root[data-design="freeze"] .fw .name,
-:root[data-design="freeze"] .slot-foot .what { font-size: 0.72em; }
-:root[data-design="freeze"] .slot-head { padding-top: 6px; padding-bottom: 6px; }
-:root[data-design="freeze"] .card h2 { padding-top: 6px; padding-bottom: 6px; }

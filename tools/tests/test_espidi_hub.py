@@ -165,5 +165,102 @@ class ImageTest(unittest.TestCase):
                                                              file="x/demo.bin"))()).image_crc32, zlib.crc32(data))
 
 
+def checker_cover():
+    """64x32 test pattern: a 1-pixel frame and a diagonal."""
+    rows = [[x in (0, 63) or y in (0, 31) or x == 2 * y for x in range(64)] for y in range(32)]
+    out = bytearray(hub.COVER_BYTES)
+    for y, row in enumerate(rows):
+        for x, on in enumerate(row):
+            if on:
+                out[y * 8 + x // 8] |= 0x80 >> (x % 8)
+    return bytes(out), rows
+
+
+class CoverTest(unittest.TestCase):
+    def setUp(self):
+        self.bits, self.rows = checker_cover()
+
+    def write(self, name, data):
+        d = tempfile.mkdtemp()
+        path = os.path.join(d, name)
+        with open(path, "wb") as f:
+            f.write(data)
+        return path
+
+    def test_block_round_trip_and_crc(self):
+        sector = hub.pack_meta([hub.SlotMeta(name="A", image_size=1), hub.SlotMeta()], [self.bits, None])
+        self.assertEqual(len(sector), hub.META_SIZE)
+        self.assertEqual(hub.unpack_covers(sector), [self.bits, None])
+        self.assertEqual(hub.unpack_meta(sector)[0].name, "A")      # covers don't disturb the slot info
+        broken = bytearray(sector)
+        broken[hub.COVER_OFFSETS[0] + 100] ^= 1
+        self.assertEqual(hub.unpack_covers(bytes(broken)), [None, None])
+
+    def test_cover_inside_firmware(self):
+        data = fake_image(6000)
+        data = data[:4000] + hub.FW_COVER_MAGIC + self.bits + data[4000 + 12 + 256:]
+        self.assertEqual(hub.inspect_image(data).cover, self.bits)
+
+    def test_pbm_p1_and_p4(self):
+        # PBM: 1 = black, lit pixels are the white ones.
+        p1 = "P1\n# test\n64 32\n" + "\n".join(" ".join("0" if on else "1" for on in row) for row in self.rows)
+        self.assertEqual(hub.load_cover(self.write("c.pbm", p1.encode())), self.bits)
+        inverted = bytes(b ^ 0xFF for b in self.bits)
+        self.assertEqual(hub.load_cover(self.write("c4.pbm", b"P4\n64 32\n" + inverted)), self.bits)
+
+    def test_raw_and_invert(self):
+        path = self.write("c.bin", self.bits)
+        self.assertEqual(hub.load_cover(path), self.bits)
+        self.assertEqual(hub.load_cover(path, invert=True), bytes(b ^ 0xFF for b in self.bits))
+
+    def test_multiples_and_wrong_sizes(self):
+        k = 3
+        px = [[(255 if self.rows[y // k][x // k] else 0, 255) for x in range(64 * k)] for y in range(32 * k)]
+        self.assertEqual(hub.pixels_to_cover(64 * k, 32 * k, px), self.bits)
+        with self.assertRaises(ValueError):
+            hub.pixels_to_cover(100, 50, [[(0, 255)] * 100] * 50)
+        with self.assertRaises(ValueError):
+            hub.pixels_to_cover(128, 32, [[(0, 255)] * 128] * 32)
+
+    def test_png_matches_pillow(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed")
+        base = Image.new("L", (128, 64))
+        for y in range(64):
+            for x in range(128):
+                base.putpixel((x, y), 255 if self.rows[y // 2][x // 2] else 0)
+        variants = {
+            "1bit": base.convert("1"),
+            "gray": base,
+            "rgb": base.convert("RGB"),
+            "rgba": base.convert("RGBA"),
+            "la": base.convert("LA"),
+            "palette": base.convert("P"),
+        }
+        gray16 = Image.new("I;16", (128, 64))
+        gray16.putdata([v * 257 for v in base.getdata()])   # real 16-bit white is 65535
+        variants["gray16"] = gray16
+        for name, img in variants.items():
+            with self.subTest(name):
+                path = os.path.join(tempfile.mkdtemp(), f"{name}.png")
+                img.save(path, optimize=False)
+                self.assertEqual(hub.load_cover(path), self.bits)
+
+    def test_transparent_is_dark(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed")
+        img = Image.new("RGBA", (64, 32), (255, 255, 255, 0))
+        img.putpixel((5, 5), (255, 255, 255, 255))
+        path = os.path.join(tempfile.mkdtemp(), "t.png")
+        img.save(path)
+        bits = hub.load_cover(path)
+        self.assertEqual(sum(bin(b).count("1") for b in bits), 1)
+        self.assertEqual(bits[5 * 8], 0x80 >> 5)
+
+
 if __name__ == "__main__":
     unittest.main()

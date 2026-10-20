@@ -1,4 +1,5 @@
-// ESPidi HUB composer: pick two firmwares, see where they go, write them over USB or download one image.
+// ESPidi HUB composer: pick two firmwares and their covers, see where they go, write them over USB
+// or download one image.
 import * as E from "./espidi.js";
 import { GLYPHS } from "./font.js";
 import { t, setLang, getLang, detectLang, saveLang } from "./i18n.js";
@@ -6,18 +7,21 @@ import { Device, webSerialSupported } from "./flasher.js";
 
 const BUTTON = ["PLAY", "PAGE"];
 const HUB_VERSION = "0.1.0";
-const DESIGNS = ["oled", "matrix", "dither", "freeze"];
 
 const state = {
   catalog: [],
   data: new Map(),   // catalog index -> Uint8Array | "loading" | Error
+  covers: new Map(), // catalog index -> its cover (Uint8Array, 64x32 1 bit)
   hub: null,         // { bootloader, hub, version } once the HUB build is published
+  // cover.mode: "auto" — the firmware's own cover (catalog, inside the image, on the device),
+  // "custom" — a picture the user put, "none" — no cover.
   slots: [
-    { mode: "catalog", pick: 0, file: null, name: "", version: "" },
-    { mode: "empty", pick: -1, file: null, name: "", version: "" },
+    { mode: "catalog", pick: 0, file: null, name: "", version: "", cover: { mode: "auto" } },
+    { mode: "empty", pick: -1, file: null, name: "", version: "", cover: { mode: "auto" } },
   ],
+  screen: "menu",    // OLED preview: "menu" or a slot index (its start screen)
   device: null,
-  deviceState: null, // { hub: false } | { hub: true, layout, meta }
+  deviceState: null, // { hub: false } | { hub: true, layout, meta, covers }
   full: false,
   busy: false,
   progress: null,    // 0..1 while writing
@@ -37,7 +41,7 @@ const hubOnDevice = () => !!(state.device && state.deviceState?.hub);
 const canKeep = () => hubOnDevice() && !state.full;
 const fullInstall = () => state.full || !hubOnDevice();
 
-function sourceOf(i) {
+function baseSource(i) {
   const s = state.slots[i];
   if (s.mode === "empty") return { kind: "empty" };
   if (s.mode === "keep") return canKeep() ? { kind: "keep" } : { kind: "empty" };
@@ -52,6 +56,98 @@ function sourceOf(i) {
   return { kind: "image", data: s.file.data, meta: { id: d?.id || "", name: s.name, version: s.version, author: d?.author || "" } };
 }
 
+function sourceOf(i) {
+  const src = baseSource(i);
+  return src && src.kind !== "empty" ? { ...src, cover: coverOf(i)?.bits || null } : src;
+}
+
+// ---------------------------------------------------------------------------
+// Covers
+// ---------------------------------------------------------------------------
+const embedded = new WeakMap();   // image data -> the cover inside it
+function embeddedCover(data) {
+  if (!embedded.has(data)) embedded.set(data, E.inspectImage(data).cover);
+  return embedded.get(data);
+}
+
+// The cover that comes with what slot i holds: { bits, from } or null.
+function ownCover(i) {
+  const s = state.slots[i];
+  const src = baseSource(i);
+  if (!src || src.kind === "empty") return null;
+  if (src.kind === "keep") {
+    const c = state.deviceState.layout.slot[i] && state.deviceState.covers?.[i];
+    return c ? { bits: c, from: "device" } : null;
+  }
+  if (s.mode === "catalog" && state.covers.get(s.pick)) return { bits: state.covers.get(s.pick), from: "catalog" };
+  const c = s.mode === "file" ? s.file.info.cover : embeddedCover(src.data);
+  return c ? { bits: c, from: "firmware" } : null;
+}
+
+// The cover that will be written for slot i: { bits, from } or null.
+function coverOf(i) {
+  const c = state.slots[i].cover;
+  if (c.mode === "none") return null;
+  if (c.mode === "custom") return { bits: c.bits, from: "custom" };
+  return ownCover(i);
+}
+
+// Picture file -> { w, h, rgba } (canvas pixels) or { raw } for a 256-byte cover dump.
+async function decodePicture(blob) {
+  if (blob.size === E.COVER_BYTES && /\.(bin|raw)$/i.test(blob.name || "")) return { raw: new Uint8Array(await blob.arrayBuffer()) };
+  if (blob.size > 30 * 1024 * 1024) throw new Error("too big");
+  const bmp = await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+  let w = bmp.width, h = bmp.height;
+  const exact = w % E.COVER_W === 0 && h % E.COVER_H === 0 && w / E.COVER_W === h / E.COVER_H;
+  if (!exact && Math.max(w, h) > 1024) {   // a photo: the browser shrinks it first
+    const k = 1024 / Math.max(w, h);
+    w = Math.max(1, Math.round(w * k));
+    h = Math.max(1, Math.round(h * k));
+  }
+  const cv = document.createElement("canvas");
+  cv.width = w;
+  cv.height = h;
+  const ctx = cv.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(bmp, 0, 0, w, h);
+  bmp.close?.();
+  return { w, h, rgba: ctx.getImageData(0, 0, w, h).data };
+}
+
+// 64x32 and exact multiples go pixel for pixel (as tools/espidi_hub.py cover), the rest is fitted.
+function pictureToCover(px, invert) {
+  if (px.raw) return { bits: invert ? px.raw.map((b) => b ^ 0xFF) : px.raw, fitted: false };
+  try {
+    return { bits: E.pixelsToCover(px.w, px.h, px.rgba, invert), fitted: false };
+  } catch {
+    return { bits: E.fitCover(px.w, px.h, px.rgba, invert), fitted: true };
+  }
+}
+
+async function loadCover(i, file) {
+  const s = state.slots[i];
+  try {
+    const px = await decodePicture(file);
+    s.cover = { mode: "custom", name: file.name, px, invert: false, ...pictureToCover(px, false) };
+    state.screen = i;
+  } catch {
+    s.cover = { ...s.cover, error: file.name };
+  }
+  render();
+}
+
+async function loadCatalogCovers() {
+  await Promise.all(state.catalog.map(async (fw, k) => {
+    if (!fw.cover) return;
+    try {
+      const res = await fetch(`catalog/${fw.cover}`);
+      if (!res.ok) return;
+      state.covers.set(k, pictureToCover(await decodePicture(await res.blob()), false).bits);
+    } catch {
+      // the firmware simply shows no cover
+    }
+  }));
+}
+
 // Name the HUB will show for slot i, or "" for an empty slot.
 function shownName(i) {
   const src = sourceOf(i);
@@ -61,6 +157,12 @@ function shownName(i) {
     return state.deviceState.layout.slot[i] ? m.name || `SLOT ${i + 1}` : "";
   }
   return src.meta.name || `SLOT ${i + 1}`;
+}
+
+function shownVersion(i) {
+  const src = baseSource(i);
+  if (!src || src.kind === "empty") return "";
+  return src.kind === "keep" ? state.deviceState.meta[i].version : src.meta.version;
 }
 
 function composition() {
@@ -88,6 +190,15 @@ function drawText(ctx, x, y, s, scale = 1) {
   }
 }
 
+const textWidth = (s, scale) => (s.length ? (s.length * 6 - 1) * scale : 0);
+const drawCenter = (ctx, y, s, scale) => drawText(ctx, Math.trunc((128 - textWidth(s, scale)) / 2), y, s, scale);
+
+function drawBits(ctx, x, y, bits) {
+  for (let j = 0; j < E.COVER_H; j++) {
+    for (let k = 0; k < E.COVER_W; k++) if (E.coverPixel(bits, k, j)) ctx.fillRect(x + k, y + j, 1, 1);
+  }
+}
+
 const cssVar = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 
 function renderLogo() {
@@ -98,12 +209,52 @@ function renderLogo() {
   drawText(ctx, 1, 0, "ESPIDI HUB", 2);
 }
 
-// Same lines as draw_menu() in hub/main/main.c.
+function paintCover(cv, bits) {
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = cssVar("--oled-bg", "#000");
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = cssVar("--oled-fg", "#fff");
+  if (bits) drawBits(ctx, 0, 0, bits);
+}
+
 function renderOled() {
+  const screens = ["menu", 0, 1];
+  $("#screens").innerHTML = screens.map((k) => `<button type="button" data-screen="${k}" aria-pressed="${state.screen === k}">${
+    k === "menu" ? esc(t("screen_menu")) : BUTTON[k]}</button>`).join("");
+  $("#preview-hint").textContent = state.screen === "menu" ? t("preview_hint") : t("preview_start", { button: BUTTON[state.screen] });
   const ctx = $("#oled").getContext("2d");
   ctx.fillStyle = cssVar("--oled-bg", "#000");
   ctx.fillRect(0, 0, 128, 32);
   ctx.fillStyle = cssVar("--oled-fg", "#fff");
+  if (state.screen === "menu") drawMenu(ctx);
+  else drawStart(ctx, state.screen);
+}
+
+// Same as draw_start() in hub/main/main.c (try_launch() for an empty slot).
+function drawStart(ctx, i) {
+  const name = shownName(i);
+  if (!name) {
+    drawCenter(ctx, 6, `SLOT ${i + 1}`, 1);
+    drawCenter(ctx, 18, "EMPTY", 1);
+    return;
+  }
+  const cover = coverOf(i);
+  if (!cover) {
+    const scale = textWidth(name, 2) <= 128 ? 2 : 1;
+    drawCenter(ctx, scale === 2 ? 9 : 12, name, scale);
+    return;
+  }
+  drawBits(ctx, 0, 0, cover.bits);
+  const lines = [];
+  for (let at = 0; at < name.length && lines.length < 2; at += 10) lines.push(name.slice(at, at + 10));
+  const version = shownVersion(i);
+  if (version) lines.push(version.slice(0, 10));
+  const y = Math.trunc((32 - (lines.length * 9 - 2)) / 2);
+  lines.forEach((line, k) => drawText(ctx, 66, y + k * 9, line));
+}
+
+// Same lines as draw_menu() in hub/main/main.c.
+function drawMenu(ctx) {
   drawText(ctx, 0, 0, `ESPIDI HUB ${state.hub?.version || HUB_VERSION}`);
   for (let i = 0; i < 2; i++) {
     const name = shownName(i) || "---";
@@ -127,7 +278,8 @@ function renderSlot(i) {
   let body = "";
   if (s.mode === "catalog") {
     body = `<div class="catalog">${state.catalog.map((fw, k) => `
-      <button type="button" class="fw" data-pick="${k}" aria-pressed="${s.pick === k}">
+      <button type="button" class="fw${state.covers.has(k) ? " has-thumb" : ""}" data-pick="${k}" aria-pressed="${s.pick === k}">
+        ${state.covers.has(k) ? `<canvas class="thumb" width="64" height="32" data-thumb="${k}" aria-hidden="true"></canvas>` : ""}
         <span class="name">${esc(fw.name)}<span class="tag ${esc(fw.channel)}">${esc(t(`channel_${fw.channel}`))}</span></span>
         <span class="meta">${esc(fw.version)} · ${fmt(fw.size)}</span>
         <span class="summary">${esc(fw.summary?.[getLang()] || fw.summary?.en || "")}</span>
@@ -153,7 +305,34 @@ function renderSlot(i) {
     <div class="tabs" role="group">${tabs}</div>
     ${body}
     <div class="slot-foot" id="foot-${i}"></div>`;
+  el.querySelectorAll("[data-thumb]").forEach((cv) => paintCover(cv, state.covers.get(Number(cv.dataset.thumb))));
   renderFoot(i);
+}
+
+function renderCover(i) {
+  const c = state.slots[i].cover;
+  const cover = coverOf(i);
+  const own = ownCover(i);
+  let status;
+  if (cover?.from === "custom") status = t("cover_from_custom", { name: c.name }) + (c.fitted ? ` ${t("cover_fitted")}` : "");
+  else if (cover) status = t(`cover_from_${cover.from}`);
+  else status = t(c.mode === "none" ? "cover_removed" : "cover_none");
+  const acts = [["upload", true], ["invert", c.mode === "custom"], ["remove", c.mode === "auto" && own],
+    ["reset", c.mode === "none" || (c.mode === "custom" && own)], ["remove", c.mode === "custom" && !own]];
+  return `<div class="cover-box" data-cover-drop="${i}">
+      <label class="cover-pic" title="${esc(t("cover_upload"))}">
+        ${cover ? `<canvas width="64" height="32" data-cover-slot="${i}"></canvas>` : `<span class="cover-empty pat"><span>64×32</span></span>`}
+        <input type="file" accept="image/png,image/gif,image/bmp,image/jpeg,image/webp,.bin" data-cover-input>
+      </label>
+      <div class="cover-info">
+        <div class="cover-title">${esc(t("cover"))}</div>
+        <div class="muted">${esc(status)}</div>
+        ${c.error ? `<div class="err">${esc(t("cover_bad", { name: c.error }))}</div>` : ""}
+        <div class="cover-actions">${acts.filter(([, on]) => on).map(([a]) =>
+          `<button type="button" data-cover-act="${a}">${esc(t(`cover_${a}`))}</button>`).join("")}</div>
+      </div>
+    </div>
+    <div class="hint">${esc(t("cover_hint"))}</div>`;
 }
 
 function renderFoot(i) {
@@ -169,6 +348,7 @@ function renderFoot(i) {
     else {
       html = `<div class="what">${esc(fw.name)} ${esc(fw.version)}</div>
         <div class="muted">${esc(t("takes", { size: fmt(data.length), alloc: fmt(E.alignUp(data.length)) }))}</div>`;
+      html += renderCover(i);
       if (fw.screen) html += `<img class="shot" src="catalog/${esc(fw.screen)}" alt="${esc(fw.name)}">`;
     }
   } else if (s.mode === "file") {
@@ -179,16 +359,18 @@ function renderFoot(i) {
         html = `<div class="what">${esc(s.name || s.file.fileName)} ${esc(s.version)}</div>
           <div class="muted">${esc(t("takes", { size: fmt(s.file.data.length), alloc: fmt(E.alignUp(s.file.data.length)) }))}</div>`;
         if (!s.file.info.desc) html += `<div class="hint">${esc(t("no_desc"))}</div>`;
+        html += renderCover(i);
       }
     }
   } else if (s.mode === "keep" && canKeep() && state.deviceState.layout.slot[i]) {
     const m = state.deviceState.meta[i];
     html = `<div class="what">${esc(m.name || `SLOT ${i + 1}`)} ${esc(m.version)}</div>
-      <div class="muted">${fmt(state.deviceState.layout.slot[i])}</div>`;
+      <div class="muted">${fmt(state.deviceState.layout.slot[i])}</div>${renderCover(i)}`;
   } else {
     html = `<span class="muted">—</span>`;
   }
   foot.innerHTML = html;
+  foot.querySelectorAll("[data-cover-slot]").forEach((cv) => paintCover(cv, coverOf(i)?.bits));
 }
 
 // ---------------------------------------------------------------------------
@@ -265,45 +447,8 @@ function renderWrite() {
   hint.innerHTML = `${esc(t("download_hint"))}<br><code>esptool --chip esp32c3 write_flash 0x0 espidi-custom.bin</code>`;
 }
 
-// ---------------------------------------------------------------------------
-// Designs: ?design=oled|matrix|dither|freeze, remembered per browser
-// ---------------------------------------------------------------------------
-function pickDesign() {
-  const fromUrl = new URLSearchParams(location.search).get("design");
-  if (DESIGNS.includes(fromUrl)) return fromUrl;
-  try {
-    const saved = localStorage.getItem("espidi-design");
-    if (DESIGNS.includes(saved)) return saved;
-  } catch {
-    // storage may be blocked
-  }
-  return DESIGNS[0];
-}
-
-function setDesign(d) {
-  document.documentElement.dataset.design = d;
-  try {
-    localStorage.setItem("espidi-design", d);
-  } catch {
-    // ignore
-  }
-  const url = new URL(location.href);
-  url.searchParams.set("design", d);
-  history.replaceState(null, "", url);
-  renderLogo();
-  renderDesigns();
-  renderOled();
-}
-
-function renderDesigns() {
-  const current = document.documentElement.dataset.design;
-  $("#designs").innerHTML = `<span>${esc(t("design"))}</span>` + DESIGNS.map((d) =>
-    `<a href="?design=${d}" data-design="${d}" aria-current="${d === current}">${d}</a>`).join("");
-}
-
 function render() {
   document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
-  renderDesigns();
   document.querySelectorAll(".lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === getLang())));
   renderNotices();
   renderSlot(0);
@@ -354,6 +499,7 @@ async function loadCatalog() {
     state.catalog = [];
   }
   state.slots.forEach((s) => ensureData(s.pick));
+  await loadCatalogCovers();
 }
 
 async function loadHub() {
@@ -375,6 +521,7 @@ async function loadFile(i, file) {
   s.file = { fileName: file.name, data, info };
   s.name = (info.desc?.name || file.name.replace(/(\.ino)?\.bin$/i, "")).slice(0, 23);
   s.version = (info.desc?.version || "").slice(0, 15);
+  s.cover = { mode: "auto" };
   render();
 }
 
@@ -474,12 +621,24 @@ document.querySelector(".slots").addEventListener("click", (e) => {
   const s = state.slots[i];
   const mode = e.target.closest("[data-mode]")?.dataset.mode;
   const pick = e.target.closest("[data-pick]")?.dataset.pick;
-  if (mode) {
+  const act = e.target.closest("[data-cover-act]")?.dataset.coverAct;
+  if (act) {
+    if (act === "upload") card.querySelector("[data-cover-input]").click();
+    if (act === "invert") s.cover = { ...s.cover, invert: !s.cover.invert, ...pictureToCover(s.cover.px, !s.cover.invert) };
+    if (act === "remove") s.cover = { mode: "none" };
+    if (act === "reset") s.cover = { mode: "auto" };
+    if (act !== "upload") {
+      state.screen = i;
+      render();
+    }
+  } else if (mode) {
+    if (mode !== s.mode) s.cover = { mode: "auto" };
     s.mode = mode;
     if (mode === "catalog" && s.pick < 0) s.pick = 0;
     ensureData(s.pick);
     render();
   } else if (pick !== undefined) {
+    if (Number(pick) !== s.pick) s.cover = { mode: "auto" };
     s.pick = Number(pick);
     ensureData(s.pick);
     render();
@@ -488,7 +647,9 @@ document.querySelector(".slots").addEventListener("click", (e) => {
 
 document.querySelector(".slots").addEventListener("change", (e) => {
   if (e.target.type !== "file" || !e.target.files[0]) return;
-  loadFile(Number(e.target.closest(".slot").dataset.slot), e.target.files[0]);
+  const i = Number(e.target.closest(".slot").dataset.slot);
+  if ("coverInput" in e.target.dataset) loadCover(i, e.target.files[0]);
+  else loadFile(i, e.target.files[0]);
 });
 
 document.querySelector(".slots").addEventListener("input", (e) => {
@@ -502,11 +663,14 @@ document.querySelector(".slots").addEventListener("input", (e) => {
 
 for (const type of ["dragover", "dragleave", "drop"]) {
   document.querySelector(".slots").addEventListener(type, (e) => {
-    const drop = e.target.closest("[data-drop]");
-    if (!drop) return;
+    const drop = e.target.closest("[data-drop], [data-cover-drop]");
+    if (!drop || state.busy) return;
     e.preventDefault();
     drop.classList.toggle("over", type === "dragover");
-    if (type === "drop" && e.dataTransfer.files[0]) loadFile(Number(drop.dataset.drop), e.dataTransfer.files[0]);
+    const file = type === "drop" && e.dataTransfer.files[0];
+    if (!file) return;
+    if (drop.dataset.drop !== undefined) loadFile(Number(drop.dataset.drop), file);
+    else loadCover(Number(drop.dataset.coverDrop), file);
   });
 }
 
@@ -522,6 +686,13 @@ document.querySelector("#modes").addEventListener("change", (e) => {
   render();
 });
 
+$("#screens").addEventListener("click", (e) => {
+  const k = e.target.closest("[data-screen]")?.dataset.screen;
+  if (k === undefined) return;
+  state.screen = k === "menu" ? "menu" : Number(k);
+  renderOled();
+});
+
 $("#write").addEventListener("click", write);
 $("#download").addEventListener("click", download);
 
@@ -531,16 +702,8 @@ document.querySelectorAll(".lang button").forEach((b) => b.addEventListener("cli
   render();
 }));
 
-document.querySelector("#designs").addEventListener("click", (e) => {
-  const d = e.target.closest("[data-design]")?.dataset.design;
-  if (!d) return;
-  e.preventDefault();
-  setDesign(d);
-});
-
 // ---------------------------------------------------------------------------
 setLang(detectLang());
-document.documentElement.dataset.design = pickDesign();
 renderLogo();
 render();
 await Promise.all([loadCatalog(), loadHub()]);

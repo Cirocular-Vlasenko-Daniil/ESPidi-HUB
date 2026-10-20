@@ -26,6 +26,28 @@ ESPIDI_FIRMWARE("myarp", "MY ARP", "1.0.0", "Your Name");
 
 `id` (до 15 символов, строчными) — это ещё и пространство имён в NVS, и имя папки с файлами. `name` и `author` — до 23 символов, `version` — до 15. Слишком длинная строка — ошибка компиляции. Занятые id — эти пространства имён NVS используют HUB и SDK: `espidihub`, `espidi_pad`, `nimble_bond`.
 
+5. По желанию добавьте обложку — см. ниже.
+
+## Обложка
+
+Когда HUB запускает прошивку, он показывает картинку 64×32 на левой половине экрана, а рядом имя и версию. Без обложки — только имя.
+
+- Нарисуйте 64×32 пикселя, чёрно-белые: **белое горит**. Подходят и кратные размеры (128×64, 192×96, …) — каждый блок 2×2, 3×3, … станет одним пикселем. Название в картинку не пишите: HUB выводит его рядом.
+- Превратите картинку в заголовочный файл и подключите его после `ESPidiHub.h`:
+
+```bash
+python3 tools/espidi_hub.py cover my-cover.png > MySketch/cover.h   # PNG или PBM; --invert для чёрного на белом
+```
+
+```cpp
+#include <ESPidiHub.h>
+#include "cover.h"   // ESPIDI_COVER(0x00, 0x1f, …) — 256 байт
+```
+
+- Уже есть массив для Adafruit `drawBitmap()` с картинкой 64×32 (image2cpp: *Horizontal – 1 bit per pixel*)? Это тот же формат: `ESPIDI_COVER(<эти 256 байт>);`.
+- Обложка занимает 268 байт флеша. `check` показывает, есть ли она в прошивке.
+- При установке её можно заменить или убрать: `install --cover picture.png` / `--no-cover` или на сайте-сборщике. У записи в каталоге может быть своя обложка (`"cover": "name.cover.png"`).
+
 ## Правила
 
 **Обязательно**
@@ -107,7 +129,9 @@ python3 tools/espidi_hub.py check --require-descriptor out/MySketch.ino.bin
 python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 out/MySketch.ino.bin
 ```
 
-`check` показывает размер, сколько места займёт прошивка, дескриптор и проблемы (не тот чип, объединённый образ, слишком большой размер). `install` сам рассчитывает слот, записывает прошивку и не трогает второй слот, настройки и файлы.
+`check` показывает размер, сколько места займёт прошивка, дескриптор, обложку и проблемы (не тот чип, объединённый образ, слишком большой размер). `install` сам рассчитывает слот, записывает прошивку и не трогает второй слот, настройки и файлы.
+
+Или без терминала: сайт-сборщик принимает ваш `.bin` («Свой файл») и записывает его по USB из Chrome или Edge.
 
 ## Публикация
 
@@ -121,6 +145,11 @@ python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 out/MySketc
 __attribute__((used, retain, aligned(4))) const struct {
     char magic[12], id[16], name[24], version[16], author[24];
 } espidi_firmware_descriptor = {"ESPIDI-FW-1", "myfw", "MY FW", "1.0.0", "Your Name"};
+
+__attribute__((used, retain, aligned(4))) const struct {
+    char magic[12];
+    unsigned char bits[256];
+} espidi_firmware_cover = {"ESPIDI-CV-1", { /* 256 байт из espidi_hub.py cover */ }};
 ```
 
 Общая файловая система — data-раздел с меткой `spiffs` (LittleFS); NVS — стандартный раздел `nvs`.

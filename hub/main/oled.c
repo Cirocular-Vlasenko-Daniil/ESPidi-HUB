@@ -103,6 +103,14 @@ int oled_text(int x, int y, const char *s, int scale, bool on)
     return x;
 }
 
+void oled_bitmap(int x, int y, int w, int h, const uint8_t *bits)
+{
+    int stride = (w + 7) / 8;
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++)
+            if (bits[j * stride + i / 8] & (0x80 >> (i % 8))) oled_pixel(x + i, y + j, true);
+}
+
 int oled_text_width(const char *s, int scale)
 {
     int n = (int)strlen(s);

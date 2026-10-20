@@ -63,7 +63,7 @@ The app area is `0x50000`–`0x300000`, 2 752 KB.
 
 ## `espidi` metadata sector
 
-Written by the installer, read by the HUB (`hub/main/slots.c`). Little-endian, 192 bytes, rest of the 4 KB sector `0xFF`.
+Written by the installer, read by the HUB (`hub/main/slots.c`). Little-endian. Slot info: 192 bytes at 0; cover blocks at `0x100` (slot 1) and `0x300` (slot 2); the rest of the 4 KB sector `0xFF`.
 
 | Offset | Size | Field |
 |---|---|---|
@@ -76,6 +76,25 @@ Written by the installer, read by the HUB (`hub/main/slots.c`). Little-endian, 1
 Slot record (88 bytes): `id[16]`, `name[24]`, `version[16]`, `author[24]` — NUL-terminated ASCII; `image_size` u32 (0 = empty); `image_crc32` u32.
 
 A sector with a wrong magic, format or CRC reads as "no metadata". The HUB then takes the name from the firmware descriptor, then from the app description, and falls back to `SLOT n`.
+
+### Cover block
+
+| Offset | Size | Field |
+|---|---|---|
+| 0 | 8 | magic `ESPIDICV` |
+| 8 | 2 | width = 64 |
+| 10 | 2 | height = 32 |
+| 12 | 4 | reserved = 0 |
+| 16 | 256 | pixels |
+| 272 | 4 | CRC-32 (zlib) of bytes 0–271 |
+
+Pixels: 1 bit each, rows top to bottom, 8 bytes per row, most significant bit = leftmost pixel, 1 = lit — the Adafruit GFX `drawBitmap()` format (image2cpp: "Horizontal – 1 bit per pixel"). A block that is blank or fails the check means "no cover stored"; the HUB then looks for a cover inside the firmware, and without one shows the name alone. The blocks sit outside the 192 bytes covered by the slot-info CRC, so devices installed before covers existed read as "no cover", and the format number stays 1.
+
+The installer stores the cover given on the command line, else the one inside the firmware (so the HUB reads 276 bytes instead of scanning the image). The composer does the same, plus catalog covers and pictures the user uploads.
+
+### Start screen
+
+When the HUB starts a slot it shows the cover at x 0–63 and, from x 66, the name split into up to two lines of 10 characters and the version (10 characters), centred vertically with 9-pixel lines; without a cover, the name centred, at double size if it fits. The screen holds 600 ms with a cover, 300 ms without, and stays on the OLED until the firmware draws. `web/app.js` `drawStart()` draws the same for the preview.
 
 ## Firmware descriptor
 
@@ -91,10 +110,14 @@ Put into a firmware by `ESPIDI_FIRMWARE(id, name, version, author)` from the SDK
 
 Arduino builds report `arduino-lib-builder` as the project name in the ESP-IDF app description, which is why the descriptor exists.
 
+### Firmware cover
+
+Optional, put into a firmware by `ESPIDI_COVER(...)` from the SDK (`tools/espidi_hub.py cover picture.png > cover.h` writes it). 268 bytes, 4-byte aligned, `used, retain`: magic `ESPIDI-CV-1\0` (12 bytes), then the 256 bytes of pixels in the cover-block format. The HUB scans the first 1 MB of a slot for it in 4-byte steps when the metadata sector has no cover for that slot.
+
 ## Install procedures (`tools/espidi_hub.py`)
 
 - **base** — `erase_flash`, then bootloader `0x0`, empty partition table, empty metadata, HUB `0x10000`. The only operation that erases settings.
-- **install** — read table and metadata, compute the new layout, write the image at its new offset, then the new table and metadata. If interrupted before the table is written, the old table still describes the device and a half-written slot fails validation, so the HUB starts.
+- **install** — read table and metadata, compute the new layout, write the image at its new offset, then the new table and metadata (with the cover: `--cover`, else the firmware's own; `--no-cover` for none; the other slot's cover stays). If interrupted before the table is written, the old table still describes the device and a half-written slot fails validation, so the HUB starts.
 - **remove** — erase the placeholder area at the slot's anchor first, then write the table and metadata.
 
 ## Failure modes
@@ -121,7 +144,8 @@ Static site on GitHub Pages. `espidi.js` is a port of the installer (layout, par
 - **Write — update:** reads the table and slot info from the board; each slot is *keep*, *replace* or *empty*; writes only the changed images, a blank placeholder for an emptied slot, then the table and slot info. NVS and files stay. Slots that are empty in the composition default to *keep* when a board with the HUB is connected, so an update never deletes a firmware by accident.
 - **Download:** one image from `0x0` to the end of the firmware area (same bytes as `espidi_hub.py image`); flashing it at `0x0` clears NVS, the file partition is not touched.
 - **Catalog:** `web/catalog/catalog.json` with the binaries next to it (GitHub release downloads are not CORS-enabled, so Pages serves them). `tools/update_catalog.py` fills sizes and SHA-256; the site verifies the checksum after downloading.
-- The preview draws the HUB menu with the HUB's own font (`font.js`, generated from `font.c`).
+- **Covers:** per slot — the firmware's own (catalog `cover` PNG, else the one inside the image, else on an update the one already on the board), a picture the user uploads, or none. 64×32 and exact multiples are converted pixel for pixel exactly as `espidi_hub.py cover` does (checked by `test.html`); any other size is scaled to fit and dithered (Atkinson), which only the site does. Changing only the cover of a kept firmware rewrites just the table and the metadata sector.
+- The preview draws the HUB menu and both start screens with the HUB's own font (`font.js`, generated from `font.c`).
 
 ## Planned
 - BLE controller support (`sdk/ESPidiPad`, first target: the M-VAVE SMC-PAD, based on a reverse-engineered protocol). Lives in the firmware, not in the HUB — only one app runs at a time, so the HUB cannot keep a connection for a firmware. A separate optional library (NimBLE central) so firmwares without a pad don't carry the BLE stack (~200–300 KB). Layers: BLE MIDI transport → device profile (pads/encoders/LEDs) → events delivered in `loop()`. The pad's address is stored once in the NVS namespace `espidi_pad`, so every firmware reconnects without scanning; the HUB menu can offer "forget pad" without needing BLE itself.

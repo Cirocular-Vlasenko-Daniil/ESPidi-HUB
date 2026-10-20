@@ -12,6 +12,7 @@
         "ru": "Алгоритмический MIDI-секвенсор и CC-модулятор на погодных движках FOG, SUN, RAIN и SNOW, 16 шагов."
       },
       "file": "redsea-1.0.bin",
+      "cover": "redsea.cover.png",
       "screen": "redsea.png",
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/Red-Sea",
       "size": 419984,
@@ -28,6 +29,7 @@
         "ru": "1.0 плюс MIDI-каналы на каждый параметр, длина нот, Freeze Roll, свинг и движок TWST. В тестировании."
       },
       "file": "redsea-1.1-beta.bin",
+      "cover": "redsea-beta.cover.png",
       "screen": "redsea.png",
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/Red-Sea/tree/beta",
       "size": 431488,
@@ -44,9 +46,10 @@
         "ru": "Пример SDK: кнопки, MIDI-выход, настройки, файлы, долгое нажатие энкодера — назад в HUB."
       },
       "file": "template-0.1.0.bin",
+      "cover": "template.cover.png",
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/tree/main/templates/arduino-firmware",
-      "size": 397472,
-      "sha256": "b4df476e6716a4989ff2cb1818aec0542a53462b961b1051817fa6bf9dbbe00a"
+      "size": 397744,
+      "sha256": "0d702c4c61742ac90283df08fbbbe32da0beb59fe04dd077b0bf706b85d1b8b1"
     }
   ]
 }

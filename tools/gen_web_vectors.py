@@ -32,7 +32,7 @@ def catalog_file(name: str) -> bytes:
 
 
 def main() -> None:
-    v = {"hashes": [], "layouts": [], "meta": [], "images": [], "merged": None}
+    v = {"hashes": [], "layouts": [], "meta": [], "images": [], "covers": {}, "merged": None}
 
     for inp in ({"text": ""}, {"text": "abc"}, {"lcg": [1000, 1]}, {"lcg": [64, 7]}):
         data = inp["text"].encode() if "text" in inp else lcg(*inp["lcg"])
@@ -58,14 +58,33 @@ def main() -> None:
                             "app_version": info.app_version, "idf_version": info.idf_version,
                             "desc": ({k: getattr(info.desc, k) for k in ("id", "name", "version", "author")}
                                      if info.desc else None),
+                            "cover": info.cover.hex() if info.cover else None,
                             "problems": len(info.problems)})
+
+    # Covers: the block format, and pixels_to_cover() on RGBA input the browser gets from a canvas.
+    def rgba_rows(w, h, seed):
+        raw = lcg(w * h * 4, seed)
+        return [[((raw[o] * 299 + raw[o + 1] * 587 + raw[o + 2] * 114) // 1000, raw[o + 3])
+                 for o in range((y * w) * 4, (y * w + w) * 4, 4)] for y in range(h)]
+    cv = v["covers"]
+    cv["pixels"] = [{"size": [w, h], "seed": seed, "invert": inv,
+                     "cover": hub.pixels_to_cover(w, h, rgba_rows(w, h, seed), inv).hex()}
+                    for w, h, seed, inv in ((64, 32, 4, False), (128, 64, 5, False), (192, 96, 6, True))]
+    cv["block"] = {"bits": [256, 1], "md5": md5(hub.pack_cover(lcg(256, 1)))}
+    cv["catalog"] = {name: hub.load_cover(os.path.join(ROOT, "web", "catalog", name)).hex()
+                     for name in ("redsea.cover.png", "redsea-beta.cover.png", "template.cover.png")}
+    with_covers = [hub.SlotMeta("redsea", "RED SEA", "1.0", "Daniil Vlasenko", 419984, 1), hub.SlotMeta()]
+    cv["meta"] = {"slots": [m.__dict__ for m in with_covers], "covers": [lcg(256, 8).hex(), None],
+                  "md5": md5(hub.pack_meta(with_covers, [lcg(256, 8), None]))}
 
     s1, s2 = catalog_file("redsea-1.1-beta.bin"), catalog_file("template-0.1.0.bin")
     mm = [hub.SlotMeta("redsea", "RED SEA", "1.1 beta", "Daniil Vlasenko", len(s1), zlib.crc32(s1)),
           hub.SlotMeta("template", "TEMPLATE", "0.1.0", "ESPidi HUB", len(s2), zlib.crc32(s2))]
-    image = hub.build_image(lcg(20000, 2), lcg(150000, 3), [s1, s2], mm)
+    covers = [hub.load_cover(os.path.join(ROOT, "web", "catalog", "redsea-beta.cover.png")), hub.inspect_image(s2).cover]
+    image = hub.build_image(lcg(20000, 2), lcg(150000, 3), [s1, s2], mm, covers)
     v["merged"] = {"bootloader": [20000, 2], "hub": [150000, 3], "slots": ["redsea-1.1-beta.bin", "template-0.1.0.bin"],
-                   "metas": [m.__dict__ for m in mm], "size": len(image), "md5": md5(image)}
+                   "metas": [m.__dict__ for m in mm], "covers": [c.hex() for c in covers],
+                   "size": len(image), "md5": md5(image)}
 
     with open(os.path.join(ROOT, "web", "test-vectors.json"), "w") as f:
         json.dump(v, f, indent=1)

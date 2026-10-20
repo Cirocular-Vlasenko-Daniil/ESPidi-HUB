@@ -40,6 +40,18 @@ function lcg(n, seed) {
 const metaFromPy = (m) => ({ id: m.id, name: m.name, version: m.version, author: m.author,
   imageSize: m.image_size, imageCrc32: m.image_crc32 });
 
+const hex = (h) => (h ? Uint8Array.from(h.match(/../g), (x) => parseInt(x, 16)) : null);
+
+// The way app.js turns a picture into RGBA pixels.
+async function pixels(name) {
+  const bmp = await createImageBitmap(await (await fetch(`catalog/${name}`)).blob(),
+    { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+  const cv = new OffscreenCanvas(bmp.width, bmp.height);
+  const ctx = cv.getContext("2d");
+  ctx.drawImage(bmp, 0, 0);
+  return [bmp.width, bmp.height, ctx.getImageData(0, 0, bmp.width, bmp.height).data];
+}
+
 async function file(name) {
   return new Uint8Array(await (await fetch(`catalog/${name}`)).arrayBuffer());
 }
@@ -79,9 +91,35 @@ try {
     const info = E.inspectImage(await file(name));
     check(`image ${name}`, {
       chip_id: info.chipId, project: info.project, app_version: info.appVersion, idf_version: info.idfVersion,
-      desc: info.desc, problems: info.problems.length,
+      desc: info.desc, cover: info.cover ? E.toHex(info.cover) : null, problems: info.problems.length,
     }, img);
   }
+
+  const cv = v.covers;
+  for (const c of cv.pixels) {
+    const [w, h] = c.size;
+    check(`cover from ${w}x${h} pixels${c.invert ? ", inverted" : ""}`,
+      E.toHex(E.pixelsToCover(w, h, lcg(w * h * 4, c.seed), c.invert)), c.cover);
+  }
+  check("cover: 100x40 is refused", (() => { try { E.pixelsToCover(100, 40, new Uint8Array(16000)); return "ok"; } catch (e) { return e.message; } })(), "cover_size");
+  const block = E.packCover(lcg(...cv.block.bits));
+  check("cover block md5", E.md5hex(block), cv.block.md5);
+  check("cover block round trip", E.toHex(E.unpackCover(block, 0)), E.toHex(lcg(...cv.block.bits)));
+  block[20] ^= 1;
+  check("cover block: bad CRC reads as no cover", E.unpackCover(block, 0), null);
+  for (const [name, want] of Object.entries(cv.catalog)) {
+    const [w, h, rgba] = await pixels(name);
+    check(`cover ${name} decoded in the browser`, E.toHex(E.pixelsToCover(w, h, rgba)), want);
+  }
+  const metaCovers = cv.meta.covers.map(hex);
+  const sector = E.packMeta(cv.meta.slots.map(metaFromPy), metaCovers);
+  check("meta with covers: md5", E.md5hex(sector), cv.meta.md5);
+  check("meta with covers: read back", E.unpackCovers(sector).map((c) => c && E.toHex(c)), cv.meta.covers);
+  check("meta without covers: none", E.unpackCovers(E.packMeta(cv.meta.slots.map(metaFromPy))), [null, null]);
+  const fitted = E.fitCover(3, 1, Uint8Array.from([255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 0]));
+  check("fitCover: 3x1 becomes a 64x21 band, white | black | transparent",
+    [E.coverPixel(fitted, 10, 15), E.coverPixel(fitted, 31, 15), E.coverPixel(fitted, 52, 15), E.coverPixel(fitted, 10, 2)],
+    [true, false, false, false]);
 
   // planWrites: what gets written where (no Python counterpart — expected values by hand).
   const img = (n) => ({ kind: "image", data: new Uint8Array(n).fill(1), meta: { id: "x", name: "X", version: "1", author: "" } });
@@ -89,7 +127,11 @@ try {
     meta: [{ ...E.emptyMeta(), name: "A", imageSize: 400000 }, { ...E.emptyMeta(), name: "B", imageSize: 500000 }] };
   const tail = (p) => p.files.slice(-2).map((f) => f.address);
 
-  let p = E.planWrites({ sources: [img(500000), { kind: "keep" }], device: dev, full: false });
+  const c1 = lcg(256, 9), c2 = lcg(256, 10);
+  let p = E.planWrites({ sources: [{ ...img(500000), cover: c1 }, { kind: "keep", cover: c2 }], device: dev, full: false });
+  check("plan update: covers of both slots go into the slot info",
+    E.unpackCovers(p.files.at(-1).data).map((c) => c && E.toHex(c)), [E.toHex(c1), E.toHex(c2)]);
+  p = E.planWrites({ sources: [img(500000), { kind: "keep" }], device: dev, full: false });
   check("plan update: replace slot 1, keep slot 2", p.files.map((f) => [f.label, f.address]),
     [["slot 1", 0x50000], ["partition table", 0x8000], ["slot info", 0xD000]]);
   check("plan update: layout", [p.layout.slot, p.layout.offset(1)], [[0x80000, 0x80000], 0x280000]);
@@ -108,7 +150,7 @@ try {
 
   const m = v.merged;
   const sources = await Promise.all(m.slots.map(async (name, i) => ({
-    kind: "image", data: await file(name), meta: metaFromPy(m.metas[i]) })));
+    kind: "image", data: await file(name), meta: metaFromPy(m.metas[i]), cover: hex(m.covers[i]) })));
   const { image } = E.buildImage({ bootloader: lcg(...m.bootloader), hub: lcg(...m.hub), sources });
   check("merged image size", image.length, m.size);
   check("merged image md5", E.md5hex(image), m.md5);

@@ -48,6 +48,18 @@ struct __attribute__((aligned(4))) FirmwareDescriptor {
 };
 static_assert(sizeof(FirmwareDescriptor) == 92, "descriptor layout");
 
+// ---- Cover: 64x32, 1 bit per pixel, rows top to bottom, 8 bytes per row, MSB = leftmost
+// pixel (the Adafruit GFX drawBitmap() / image2cpp "horizontal" format), 1 = lit.
+// The HUB shows it next to the name when it starts the firmware.
+// Layout must match tools/espidi_hub.py (FW_COVER_MAGIC) and hub/main/slots.c.
+constexpr uint8_t COVER_WIDTH = 64;
+constexpr uint8_t COVER_HEIGHT = 32;
+struct __attribute__((aligned(4))) Cover {
+  char magic[12];      // "ESPIDI-CV-1"
+  uint8_t bits[256];
+};
+static_assert(sizeof(Cover) == 268, "cover layout");
+
 // ---- Where the firmware runs.
 inline const esp_partition_t *hubPartition() {
   return esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, "hub");
@@ -109,3 +121,10 @@ inline String dataDir(const char *id) {
 #define ESPIDI_FIRMWARE(id, name, version, author)                                  \
   extern "C" __attribute__((used, retain)) const espidi::FirmwareDescriptor         \
       espidi_firmware_descriptor = {"ESPIDI-FW-1", id, name, version, author}
+
+// Optional, once per sketch: the 256 bytes of a 64x32 cover. Generate them from a PNG:
+//   python3 tools/espidi_hub.py cover my-cover.png
+// More than 256 bytes is a compile error.
+#define ESPIDI_COVER(...)                                                            \
+  extern "C" __attribute__((used, retain)) const espidi::Cover                      \
+      espidi_firmware_cover = {"ESPIDI-CV-1", {__VA_ARGS__}}

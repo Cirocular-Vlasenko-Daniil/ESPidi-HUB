@@ -26,6 +26,28 @@ ESPIDI_FIRMWARE("myarp", "MY ARP", "1.0.0", "Your Name");
 
 `id` (max 15 characters, lowercase) is also your NVS namespace and your folder name. `name` and `author` max 23 characters, `version` max 15. A longer string is a compile error. Reserved ids — the HUB and the SDK use these NVS namespaces: `espidihub`, `espidi_pad`, `nimble_bond`.
 
+5. Optionally, give it a cover — see below.
+
+## Cover
+
+When the HUB starts your firmware it shows a 64×32 picture on the left half of the screen, with the name and version next to it. Without a cover it shows just the name.
+
+- Draw 64×32 pixels, black and white: **white = lit**. A multiple of that (128×64, 192×96, …) also works — every 2×2, 3×3, … block becomes one pixel. Don't put the name in the picture; the HUB prints it next to it.
+- Turn it into a header and include it after `ESPidiHub.h`:
+
+```bash
+python3 tools/espidi_hub.py cover my-cover.png > MySketch/cover.h   # PNG or PBM; --invert for black-on-white art
+```
+
+```cpp
+#include <ESPidiHub.h>
+#include "cover.h"   // ESPIDI_COVER(0x00, 0x1f, …) — 256 bytes
+```
+
+- Already have an Adafruit `drawBitmap()` array of a 64×32 image (image2cpp: *Horizontal – 1 bit per pixel*)? It is the same format: `ESPIDI_COVER(<the 256 bytes>);`.
+- The cover costs 268 bytes of flash. `check` says whether a firmware has one.
+- Users can replace or remove it when they install: `install --cover picture.png` / `--no-cover`, or in the web composer. A catalog entry can have its own cover (`"cover": "name.cover.png"`).
+
 ## Rules
 
 **Must**
@@ -107,7 +129,9 @@ python3 tools/espidi_hub.py check --require-descriptor out/MySketch.ino.bin
 python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 out/MySketch.ino.bin
 ```
 
-`check` reports the size, the slot space it takes, the descriptor and any problem (wrong chip, merged image, too big). `install` sizes the slot, writes the firmware and keeps the other slot, all settings and files intact.
+`check` reports the size, the slot space it takes, the descriptor, the cover and any problem (wrong chip, merged image, too big). `install` sizes the slot, writes the firmware and keeps the other slot, all settings and files intact.
+
+Or without a terminal: the composer site takes your `.bin` (“My file”) and writes it over USB from Chrome or Edge.
 
 ## Publishing
 
@@ -121,6 +145,11 @@ The same rules apply. Without the Arduino SDK, add the descriptor by hand:
 __attribute__((used, retain, aligned(4))) const struct {
     char magic[12], id[16], name[24], version[16], author[24];
 } espidi_firmware_descriptor = {"ESPIDI-FW-1", "myfw", "MY FW", "1.0.0", "Your Name"};
+
+__attribute__((used, retain, aligned(4))) const struct {
+    char magic[12];
+    unsigned char bits[256];
+} espidi_firmware_cover = {"ESPIDI-CV-1", { /* 256 bytes from espidi_hub.py cover */ }};
 ```
 
 The shared file system is the data partition labelled `spiffs` (LittleFS); NVS is the default `nvs` partition.

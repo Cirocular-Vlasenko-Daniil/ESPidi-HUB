@@ -27,6 +27,7 @@ Humans: the same content with explanations is in [docs/FIRMWARE_GUIDE.md](docs/F
 7. Use the ESPidi pins below via `espidi::pin::*`. Buttons and encoder: `INPUT_PULLUP`, active LOW.
 8. Do not require TAP (GPIO2) to be held at power-on — strapping pin.
 9. To return to the HUB, call `espidi::rebootToHub()`. `esp_restart()` restarts your own firmware.
+10. Optional cover: at most one `ESPIDI_COVER(...)` (256 bytes, 64×32, 1 bit, rows top to bottom, MSB = leftmost pixel, 1 = lit). Generate it — `python3 <ESPidi-HUB>/tools/espidi_hub.py cover <png> > <SketchFolder>/cover.h`, include `"cover.h"` after `<ESPidiHub.h>` — never write the bytes by hand. Input: PNG/PBM 64×32 or an exact multiple, white = lit. No firmware name in the picture (the HUB prints it next to the cover).
 
 ### Constants
 
@@ -59,7 +60,7 @@ arduino-cli compile --fqbn esp32:esp32:esp32c3 --warnings all \
 python3 <ESPidi-HUB>/tools/espidi_hub.py check --require-descriptor out/<Sketch>.ino.bin
 ```
 
-Done means: it compiles without warnings from your code, `check` exits 0, and a search of your sources finds none of the forbidden calls from rule 5. If a sketch exceeds Arduino's 1.25 MB default, compile with `esp32:esp32:esp32c3:PartitionScheme=huge_app` (this lifts only Arduino's check).
+Done means: it compiles without warnings from your code, `check` exits 0 (and prints `cover: ESPIDI_COVER() inside` if you added one), and a search of your sources finds none of the forbidden calls from rule 5. If a sketch exceeds Arduino's 1.25 MB default, compile with `esp32:esp32:esp32c3:PartitionScheme=huge_app` (this lifts only Arduino's check).
 
 If the user can test on hardware, ask them to confirm: both slots start, settings of the other firmware survive, power cycle → HUB, `rebootToHub()` → HUB.
 
@@ -86,11 +87,11 @@ If the user can test on hardware, ask them to confirm: both slots start, setting
 1. The flash layout is a contract with every installed device: offsets and sizes of `nvs`, `espidi`, `otadata`, `hub`, `spiffs`, and the slot anchors `0x50000` / `0x300000`. Changing them requires a format bump and a migration plan agreed with the user.
 2. `hub/partitions.csv` == `empty_layout()` in `tools/espidi_hub.py`, byte for byte (CI checks; the unit test compares with `gen_esp32part.py` when it is available).
 3. The partition table always contains `ota_0` and `ota_1` (empty slots keep a 64 KB placeholder).
-4. Binary formats (metadata sector, firmware descriptor) are defined three times — `hub/main/slots.c`, `tools/espidi_hub.py`, `sdk/ESPidiHub/src/ESPidiHub.h`. Change all three and `docs/ARCHITECTURE.md` together.
+4. Binary formats (metadata sector, cover blocks, firmware descriptor, firmware cover) are defined in `hub/main/slots.c`, `tools/espidi_hub.py`, `sdk/ESPidiHub/src/ESPidiHub.h` and `web/espidi.js`. Change all of them and `docs/ARCHITECTURE.md` together. The start screen is drawn twice — `draw_start()` in `hub/main/main.c` and `drawStart()` in `web/app.js`; keep them identical.
 5. The HUB and the installer never erase NVS or the file partition (only `base` erases the whole chip, after confirmation).
 6. The HUB never auto-starts a slot after the bootloader refused it (no boot loops).
 7. Keep the HUB under 256 KB and the bootloader under 32 KB (CI checks).
-8. `web/espidi.js` must produce the same bytes as `tools/espidi_hub.py`. After changing either: `python3 tools/gen_web_vectors.py`, then open `web/test.html` over HTTP — all checks must pass. After changing the HUB font: `python3 tools/gen_web_font.py`. After adding a catalog firmware: `python3 tools/update_catalog.py`.
+8. `web/espidi.js` must produce the same bytes as `tools/espidi_hub.py`. After changing either: `python3 tools/gen_web_vectors.py`, then open `web/test.html` over HTTP — all checks must pass. After changing the HUB font: `python3 tools/gen_web_font.py`. After adding a catalog firmware or cover: `python3 tools/update_catalog.py`. Catalog and template covers are drawn by `tools/make_covers.py`.
 
 ### Build and test
 

@@ -171,7 +171,7 @@ const META_HEAD = 12, META_SLOT = 88, META_BODY = META_HEAD + SLOTS * META_SLOT;
 
 export const emptyMeta = () => ({ id: "", name: "", version: "", author: "", imageSize: 0, imageCrc32: 0 });
 
-export function packMeta(slots) {
+export function packMeta(slots, covers = []) {
   const out = new Uint8Array(META_SIZE).fill(0xFF);
   const dv = new DataView(out.buffer);
   out.set(new TextEncoder().encode(META_MAGIC), 0);
@@ -187,6 +187,7 @@ export function packMeta(slots) {
     dv.setUint32(o + 84, m.imageCrc32 >>> 0, true);
   });
   dv.setUint32(META_BODY, crc32(out.subarray(0, META_BODY)), true);
+  covers.forEach((c, i) => { if (c) out.set(packCover(c), COVER_OFFSETS[i]); });
   return out;
 }
 
@@ -202,6 +203,112 @@ export function unpackMeta(data) {
       author: getStr(data, o + 56, 24), imageSize: dv.getUint32(o + 80, true), imageCrc32: dv.getUint32(o + 84, true),
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Covers: 64x32, 1 bit per pixel, rows top to bottom, 8 bytes per row, MSB = leftmost
+// pixel, 1 = lit. One block per slot in the "espidi" sector; optionally inside a firmware.
+// ---------------------------------------------------------------------------
+export const COVER_W = 64, COVER_H = 32, COVER_BYTES = 256;
+const COVER_MAGIC = "ESPIDICV";
+const COVER_HEAD = 16, COVER_BLOCK = COVER_HEAD + COVER_BYTES + 4;   // 276
+export const COVER_OFFSETS = [0x100, 0x300];
+const FW_COVER_MAGIC = new TextEncoder().encode("ESPIDI-CV-1\0");
+
+export function packCover(bits) {
+  const out = new Uint8Array(COVER_BLOCK);
+  const dv = new DataView(out.buffer);
+  out.set(new TextEncoder().encode(COVER_MAGIC), 0);
+  dv.setUint16(8, COVER_W, true);
+  dv.setUint16(10, COVER_H, true);
+  dv.setUint32(12, 0, true);
+  out.set(bits, COVER_HEAD);
+  dv.setUint32(COVER_BLOCK - 4, crc32(out.subarray(0, COVER_BLOCK - 4)), true);
+  return out;
+}
+
+export function unpackCover(data, offset) {
+  const b = data.subarray(offset, offset + COVER_BLOCK);
+  if (b.length < COVER_BLOCK) return null;
+  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  if (getStr(b, 0, 8) !== COVER_MAGIC || dv.getUint16(8, true) !== COVER_W || dv.getUint16(10, true) !== COVER_H) return null;
+  if (crc32(b.subarray(0, COVER_BLOCK - 4)) !== dv.getUint32(COVER_BLOCK - 4, true)) return null;
+  return b.slice(COVER_HEAD, COVER_HEAD + COVER_BYTES);
+}
+
+export const unpackCovers = (data) => COVER_OFFSETS.map((o) => unpackCover(data, o));
+
+export const coverPixel = (bits, x, y) => (bits[y * 8 + (x >> 3)] & (0x80 >> (x & 7))) !== 0;
+
+// RGBA pixels (canvas ImageData layout) of a 64x32 picture or an exact multiple of it:
+// each k*k block becomes one pixel, lit if at least half of it is light and opaque.
+// Same as pixels_to_cover() in tools/espidi_hub.py.
+export function pixelsToCover(w, h, rgba, invert = false) {
+  if (w % COVER_W || h % COVER_H || w / COVER_W !== h / COVER_H) throw new Error("cover_size");
+  const k = w / COVER_W;
+  const out = new Uint8Array(COVER_BYTES);
+  for (let y = 0; y < COVER_H; y++) {
+    for (let x = 0; x < COVER_W; x++) {
+      let lit = 0;
+      for (let dy = 0; dy < k; dy++) {
+        for (let dx = 0; dx < k; dx++) {
+          const o = ((y * k + dy) * w + x * k + dx) * 4;
+          const lum = Math.floor((rgba[o] * 299 + rgba[o + 1] * 587 + rgba[o + 2] * 114) / 1000);
+          if (rgba[o + 3] >= 128 && lum >= 128) lit++;
+        }
+      }
+      if ((lit * 2 >= k * k) !== invert) out[y * 8 + (x >> 3)] |= 0x80 >> (x & 7);
+    }
+  }
+  return out;
+}
+
+// Any other picture: scaled to fit 64x32 (centred, black around it) and dithered (Atkinson).
+// Light = lit; transparent = dark. Not part of the Python tool — the CLI wants exact sizes.
+export function fitCover(w, h, rgba, invert = false) {
+  const scale = Math.min(COVER_W / w, COVER_H / h);
+  const dw = Math.max(1, Math.round(w * scale)), dh = Math.max(1, Math.round(h * scale));
+  const ox = Math.floor((COVER_W - dw) / 2), oy = Math.floor((COVER_H - dh) / 2);
+  const g = new Float32Array(COVER_W * COVER_H);   // 0..1, area average of the source
+  for (let y = 0; y < dh; y++) {
+    const y0 = (y * h) / dh, y1 = ((y + 1) * h) / dh;
+    for (let x = 0; x < dw; x++) {
+      const x0 = (x * w) / dw, x1 = ((x + 1) * w) / dw;
+      let sum = 0, area = 0;
+      for (let sy = Math.floor(y0); sy < Math.ceil(y1); sy++) {
+        const fy = Math.min(y1, sy + 1) - Math.max(y0, sy);
+        for (let sx = Math.floor(x0); sx < Math.ceil(x1); sx++) {
+          const f = fy * (Math.min(x1, sx + 1) - Math.max(x0, sx));
+          const o = (sy * w + sx) * 4;
+          sum += f * ((rgba[o] * 0.299 + rgba[o + 1] * 0.587 + rgba[o + 2] * 0.114) / 255) * (rgba[o + 3] / 255);
+          area += f;
+        }
+      }
+      const v = sum / area;
+      g[(oy + y) * COVER_W + ox + x] = invert ? 1 - v : v;
+    }
+  }
+  if (invert) {   // the margin is part of the picture's background too
+    for (let y = 0; y < COVER_H; y++) {
+      for (let x = 0; x < COVER_W; x++) {
+        if (x < ox || x >= ox + dw || y < oy || y >= oy + dh) g[y * COVER_W + x] = 1;
+      }
+    }
+  }
+  const out = new Uint8Array(COVER_BYTES);
+  for (let y = 0; y < COVER_H; y++) {
+    for (let x = 0; x < COVER_W; x++) {
+      const i = y * COVER_W + x;
+      const on = g[i] >= 0.5;
+      if (on) out[y * 8 + (x >> 3)] |= 0x80 >> (x & 7);
+      const err = (g[i] - (on ? 1 : 0)) / 8;
+      for (const [dx, dy] of [[1, 0], [2, 0], [-1, 1], [0, 1], [1, 1], [0, 2]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < COVER_W && ny < COVER_H) g[ny * COVER_W + nx] += err;
+      }
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -221,7 +328,7 @@ function findBytes(hay, needle) {
 
 // Problems are codes; the UI translates them (see i18n.js).
 export function inspectImage(data) {
-  const info = { size: data.length, chipId: -1, project: "", appVersion: "", idfVersion: "", desc: null, problems: [] };
+  const info = { size: data.length, chipId: -1, project: "", appVersion: "", idfVersion: "", desc: null, cover: null, problems: [] };
   if (data.length < 0x20 + 144 || data[0] !== 0xE9) {
     info.problems.push({ code: "not_image" });
     return info;
@@ -243,6 +350,10 @@ export function inspectImage(data) {
       version: getStr(data, pos + 52, 16), author: getStr(data, pos + 68, 24),
     };
   }
+  const cv = findBytes(data, FW_COVER_MAGIC);
+  if (cv >= 0 && cv + FW_COVER_MAGIC.length + COVER_BYTES <= data.length) {
+    info.cover = data.slice(cv + FW_COVER_MAGIC.length, cv + FW_COVER_MAGIC.length + COVER_BYTES);
+  }
   if (alignUp(data.length) > MAX_IMAGE) info.problems.push({ code: "too_big", size: data.length });
   return info;
 }
@@ -252,6 +363,8 @@ export function inspectImage(data) {
 //   { kind: "empty" }
 //   { kind: "keep" }                                (device update only)
 //   { kind: "image", data: Uint8Array, meta: { id, name, version, author } }
+// Each may carry cover: Uint8Array(256) | null. For "keep", the cover to write — the UI
+// passes the device's own cover unless the user changed it.
 // ---------------------------------------------------------------------------
 export function slotMetaFor(src) {
   return { id: src.meta.id || "", name: src.meta.name || "", version: src.meta.version || "",
@@ -273,7 +386,8 @@ export function buildImage({ bootloader, hub, sources }) {
   const out = new Uint8Array(APP_END).fill(0xFF);
   out.set(bootloader, BOOTLOADER_OFFSET);
   out.set(buildTable(layout.partitions()), PT_OFFSET);
-  out.set(packMeta(sources.map((s) => (s.kind === "image" ? slotMetaFor(s) : emptyMeta()))), META_OFFSET);
+  out.set(packMeta(sources.map((s) => (s.kind === "image" ? slotMetaFor(s) : emptyMeta())),
+    sources.map((s) => (s.kind === "image" ? s.cover || null : null))), META_OFFSET);
   out.set(hub, HUB_OFFSET);
   sources.forEach((s, i) => { if (s.kind === "image") out.set(s.data, layout.offset(i)); });
   return { image: out, layout };
@@ -289,6 +403,7 @@ export function planWrites({ sources, device, full, bootloader, hub }) {
     if (s.kind === "keep" && device && !full) return device.meta[i];
     return emptyMeta();
   });
+  const covers = sources.map((s) => (s.kind === "image" || (s.kind === "keep" && device && !full) ? s.cover || null : null));
   const files = [];
   if (full) files.push({ address: BOOTLOADER_OFFSET, data: bootloader, label: "bootloader" },
     { address: HUB_OFFSET, data: hub, label: "HUB" });
@@ -303,6 +418,6 @@ export function planWrites({ sources, device, full, bootloader, hub }) {
     });
   }
   files.push({ address: PT_OFFSET, data: buildTable(layout.partitions()), label: "partition table" },
-    { address: META_OFFSET, data: packMeta(meta), label: "slot info" });
-  return { layout, meta, files, erase: full };
+    { address: META_OFFSET, data: packMeta(meta, covers), label: "slot info" });
+  return { layout, meta, covers, files, erase: full };
 }

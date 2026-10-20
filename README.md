@@ -15,7 +15,7 @@ ESPidi HUB is a small bootloader + launcher for the ESP32-C3 Super Mini based ES
 | nothing | the firmware used last time |
 | encoder button | the HUB menu (installed firmwares, free space) |
 
-Press during the short splash after the screen lights up. A restart from inside a firmware brings back the same firmware; power cycling or the RESET button brings back the HUB.
+Press during the short splash after the screen lights up. While a firmware starts, the HUB shows its **cover** — a 64×32 picture — with the name and version. A restart from inside a firmware brings back the same firmware; power cycling or the RESET button brings back the HUB.
 
 ## Firmware size
 
@@ -25,7 +25,7 @@ All firmwares share 16 KB of settings storage (NVS) and a 1 MB LittleFS partitio
 
 ## Composer (web)
 
-**[cirocular-vlasenko-daniil.github.io/ESPidi-HUB](https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/)** — pick a firmware for each slot from the catalog or load your own `.bin`, see how the flash is shared and what the HUB menu will show, then:
+**[cirocular-vlasenko-daniil.github.io/ESPidi-HUB](https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/)** — pick a firmware for each slot from the catalog or load your own `.bin`, give it a cover (the firmware's own, or any picture — 64×32 and its multiples go pixel for pixel, anything else is scaled and dithered), see how the flash is shared and what the HUB will show, then:
 
 - **write it to the ESPidi over USB** right from the browser (Chrome, Edge or Opera on a computer): a full install, or an update of the slots that keeps settings and files;
 - or **download one image** for a fresh install with any flashing tool (`esptool --chip esp32c3 write_flash 0x0 espidi-custom.bin`).
@@ -42,13 +42,13 @@ python3 tools/espidi_hub.py base -p /dev/cu.usbmodem1101
 
 # put firmwares into the slots
 python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 1 REDSEA.ino.bin
-python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 other.bin
+python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 other.bin --cover other.png
 
 # what is installed
 python3 tools/espidi_hub.py info -p /dev/cu.usbmodem1101
 ```
 
-`base` is the only command that erases settings. `image --hub-dir <dir> --slot1 a.bin --slot2 b.bin --out custom.bin` builds the same single image as the composer.
+`install` takes the cover built into the firmware unless `--cover` (PNG/PBM, 64×32 or a multiple) or `--no-cover` is given. `base` is the only command that erases settings. `image --hub-dir <dir> --slot1 a.bin --slot2 b.bin --out custom.bin` builds the same single image as the composer.
 
 ## Writing firmwares
 

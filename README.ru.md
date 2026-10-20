@@ -15,7 +15,7 @@ English version: [README.md](README.md).
 | ничего | прошивка, работавшая в прошлый раз |
 | кнопку энкодера | меню HUB (установленные прошивки, свободное место) |
 
-Нажимайте во время короткой заставки, когда экран уже загорелся. Перезапуск изнутри прошивки возвращает ту же прошивку, выключение-включение или кнопка RESET — HUB.
+Нажимайте во время короткой заставки, когда экран уже загорелся. Пока прошивка запускается, HUB показывает её **обложку** — картинку 64×32 — с именем и версией. Перезапуск изнутри прошивки возвращает ту же прошивку, выключение-включение или кнопка RESET — HUB.
 
 ## Размер прошивок
 
@@ -25,7 +25,7 @@ English version: [README.md](README.md).
 
 ## Сборщик (сайт)
 
-**[cirocular-vlasenko-daniil.github.io/ESPidi-HUB](https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/)** — выберите прошивку для каждого слота из каталога или загрузите свой `.bin`, посмотрите, как поделится память и что покажет меню HUB, а затем:
+**[cirocular-vlasenko-daniil.github.io/ESPidi-HUB](https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/)** — выберите прошивку для каждого слота из каталога или загрузите свой `.bin`, задайте обложку (родную или любую картинку — 64×32 и кратные идут пиксель в пиксель, остальное уменьшается с дизерингом), посмотрите, как поделится память и что покажет HUB, а затем:
 
 - **запишите в ESPidi по USB** прямо из браузера (Chrome, Edge или Opera на компьютере): полная установка или обновление слотов с сохранением настроек и файлов;
 - или **скачайте один образ** для чистой установки любым прошивальщиком (`esptool --chip esp32c3 write_flash 0x0 espidi-custom.bin`).
@@ -42,13 +42,13 @@ python3 tools/espidi_hub.py base -p /dev/cu.usbmodem1101
 
 # прошивки в слоты
 python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 1 REDSEA.ino.bin
-python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 other.bin
+python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 other.bin --cover other.png
 
 # что установлено
 python3 tools/espidi_hub.py info -p /dev/cu.usbmodem1101
 ```
 
-`base` — единственная команда, которая стирает настройки. `image --hub-dir <папка> --slot1 a.bin --slot2 b.bin --out custom.bin` собирает тот же единый образ, что и сайт.
+`install` берёт обложку, встроенную в прошивку, если не указаны `--cover` (PNG/PBM, 64×32 или кратная) или `--no-cover`. `base` — единственная команда, которая стирает настройки. `image --hub-dir <папка> --slot1 a.bin --slot2 b.bin --out custom.bin` собирает тот же единый образ, что и сайт.
 
 ## Разработка прошивок
 

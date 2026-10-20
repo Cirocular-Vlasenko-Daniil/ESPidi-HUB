@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Fills size and sha256 of every firmware in web/catalog/catalog.json and checks each image."""
+"""Fills size and sha256 of every firmware in web/catalog/catalog.json and checks each image
+and cover (optional "cover": a PNG or PBM next to the image, 64x32 or a multiple of it)."""
 import hashlib
 import json
 import os
@@ -23,8 +24,14 @@ def main() -> int:
         info = hub.inspect_image(data)
         fw["size"] = len(data)
         fw["sha256"] = hashlib.sha256(data).hexdigest()
-        status = "; ".join(info.problems) or "ok"
-        failed |= bool(info.problems)
+        problems = list(info.problems)
+        if fw.get("cover"):
+            try:
+                hub.load_cover(os.path.join(os.path.dirname(CATALOG), fw["cover"]))
+            except (OSError, ValueError) as e:
+                problems.append(f"cover {fw['cover']}: {e}")
+        status = "; ".join(problems) or ("ok, cover" if fw.get("cover") or info.cover else "ok")
+        failed |= bool(problems)
         print(f"{fw['file']}: {hub.fmt_size(len(data))}, {status}")
     with open(CATALOG, "w") as f:
         json.dump(cat, f, ensure_ascii=False, indent=2)

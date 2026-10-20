@@ -80,13 +80,34 @@ static void slot_title(int i, char *buf, size_t n)
     snprintf(buf, n, "SLOT %d", i + 1);
 }
 
+// Start screen: the cover on the left, the name (up to two lines of 10 characters) and the
+// version on the right; without a cover, the name alone, large if it fits.
+// web/app.js renderStart() draws the same.
+static void draw_start(const hub_slot_t *s)
+{
+    oled_clear();
+    if (!s->has_cover) {
+        int scale = oled_text_width(s->name, 2) <= OLED_W ? 2 : 1;
+        oled_text_center(scale == 2 ? 9 : 12, s->name, scale, true);
+        return;
+    }
+    oled_bitmap(0, 0, 64, 32, s->cover);
+    char lines[3][11] = {{0}};
+    int n = 0;
+    size_t len = strlen(s->name);
+    for (size_t at = 0; at < len && n < 2; at += 10) {
+        snprintf(lines[n++], sizeof(lines[0]), "%.10s", s->name + at);
+    }
+    if (s->version[0]) snprintf(lines[n++], sizeof(lines[0]), "%.10s", s->version);
+    int y = (32 - (n * 9 - 2)) / 2;
+    for (int k = 0; k < n; k++) oled_text(66, y + k * 9, lines[k], 1, true);
+}
+
 // Starts slot i. Returns only if the image does not pass validation.
 static void launch(int i)
 {
     hub_slot_t *s = &slot[i];
-    oled_clear();
-    int scale = oled_text_width(s->name, 2) <= OLED_W ? 2 : 1;
-    oled_text_center(scale == 2 ? 9 : 12, s->name, scale, true);
+    draw_start(s);
     oled_flush();
     // esp_ota_set_boot_partition() verifies the whole image before writing otadata.
     if (esp_ota_get_boot_partition() != s->part && esp_ota_set_boot_partition(s->part) != ESP_OK) {
@@ -97,7 +118,7 @@ static void launch(int i)
         return;
     }
     save_last(i);
-    wait_ms(300);
+    wait_ms(s->has_cover ? 600 : 300);  // the screen keeps this picture until the firmware draws
     esp_restart();
 }
 

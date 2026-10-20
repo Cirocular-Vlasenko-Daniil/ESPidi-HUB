@@ -11,6 +11,8 @@ typedef struct {
     bool present;                 // a firmware image is there (header and app description check out)
     char name[24];
     char version[16];
+    bool has_cover;
+    uint8_t cover[256];           // 64x32, 1 bit, see docs/ARCHITECTURE.md
 } hub_slot_t;
 
 void slots_load(hub_slot_t slot[HUB_SLOTS]);
