@@ -24,6 +24,8 @@ Commands (run with -h for options):
     plan [--slot1 F] [--slot2 F]
                             show the layout two firmwares would get (offline)
     table --out FILE        write the empty partition table (what CI compares)
+    image --hub-dir D [--slot1 F] [--slot2 F] --out FILE
+                            one fresh-install image (HUB + firmwares) to flash at 0x0
     info -p PORT            what is installed on a device
     base -p PORT            first install: erase flash, write bootloader + HUB
     install -p PORT --slot N FILE
@@ -77,7 +79,8 @@ def align_up(n: int, a: int = APP_ALIGN) -> int:
 
 
 def fmt_size(n: int) -> str:
-    return f"{n / 1024:.0f} KB" if n < 1024 * 1024 else f"{n / 1024 / 1024:.2f} MB"
+    """Rounded down (as fmt() in web/app.js): free space is never overstated."""
+    return f"{n // 1024} KB" if n < 1024 * 1024 else f"{n * 100 // (1024 * 1024) / 100:.2f} MB"
 
 
 @dataclass
@@ -271,6 +274,28 @@ def inspect_image(data: bytes) -> ImageInfo:
     return info
 
 
+def build_image(bootloader: bytes, hub: bytes, slots: List[Optional[bytes]], metas: List[SlotMeta]) -> bytes:
+    """Fresh-install image from 0x0 to the end of the firmware area (web/espidi.js buildImage).
+    Flashed at 0x0 it also clears NVS; the file partition is not part of it."""
+    layout = empty_layout()
+    for i, data in enumerate(slots):
+        if data:
+            layout = layout.with_slot(i, len(data))
+    out = bytearray(b"\xFF" * APP_END)
+
+    def put(offset: int, data: bytes) -> None:
+        out[offset:offset + len(data)] = data
+
+    put(BOOTLOADER_OFFSET, bootloader)
+    put(PT_OFFSET, build_table(layout.partitions()))
+    put(META_OFFSET, pack_meta(metas))
+    put(HUB_OFFSET, hub)
+    for i, data in enumerate(slots):
+        if data:
+            put(layout.offset(i), data)
+    return bytes(out)
+
+
 def slot_meta_for(data: bytes, info: ImageInfo, args) -> SlotMeta:
     d = info.desc or SlotMeta()
     name = args.name or d.name or os.path.splitext(os.path.basename(args.file))[0]
@@ -376,6 +401,37 @@ def cmd_table(args) -> int:
     return 0
 
 
+def cmd_image(args) -> int:
+    with open(os.path.join(args.hub_dir, "bootloader.bin"), "rb") as f:
+        bootloader = f.read()
+    with open(os.path.join(args.hub_dir, "espidi_hub.bin"), "rb") as f:
+        hub = f.read()
+    slots, metas = [], []
+    for path in (args.slot1, args.slot2):
+        if not path:
+            slots.append(None)
+            metas.append(SlotMeta())
+            continue
+        with open(path, "rb") as f:
+            data = f.read()
+        info = inspect_image(data)
+        if info.problems:
+            for p in info.problems:
+                print(f"ERROR: {path}: {p}")
+            return 1
+        d = info.desc or SlotMeta()
+        slots.append(data)
+        metas.append(SlotMeta(d.id, d.name or os.path.splitext(os.path.basename(path))[0], d.version, d.author,
+                              len(data), zlib.crc32(data)))
+    image = build_image(bootloader, hub, slots, metas)
+    with open(args.out, "wb") as f:
+        f.write(image)
+    print(f"wrote {args.out} ({fmt_size(len(image))}). Flash it with:\n"
+          f"  esptool --chip esp32c3 write_flash 0x0 {args.out}\n"
+          "This is a fresh install: settings (NVS) are cleared.")
+    return 0
+
+
 def cmd_info(args) -> int:
     layout, meta = read_state(args)
     print_layout(layout, meta)
@@ -468,6 +524,13 @@ def main(argv=None) -> int:
     p = sub.add_parser("table", help="write the empty partition table")
     p.add_argument("--out", required=True)
     p.set_defaults(func=cmd_table)
+
+    p = sub.add_parser("image", help="build one fresh-install image: HUB + up to two firmwares")
+    p.add_argument("--hub-dir", required=True, help="folder with bootloader.bin and espidi_hub.bin")
+    p.add_argument("--slot1")
+    p.add_argument("--slot2")
+    p.add_argument("--out", required=True)
+    p.set_defaults(func=cmd_image)
 
     p = sub.add_parser("info", help="show what is installed")
     device(p)

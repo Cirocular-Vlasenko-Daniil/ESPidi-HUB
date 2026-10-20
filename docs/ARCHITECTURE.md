@@ -113,8 +113,15 @@ Arduino builds report `arduino-lib-builder` as the project name in the ESP-IDF a
 - The installer rejects images whose chip id is not ESP32-C3 and merged images (bootloader + table + app).
 - The bootloader uses DIO, which every ESP32-C3 flash supports. Arduino builds default to QIO; this should not matter (an ESP-IDF app sets up its own flash driver), but it is one of the things to confirm on hardware.
 
-## Planned
+## Web composer (`web/`)
 
-- Web installer: esptool-js + Web Serial on GitHub Pages, same logic as `tools/espidi_hub.py`. Binaries must be served by Pages (GitHub release downloads are not CORS-enabled).
-- Firmware catalog: a JSON list in this repository; CI mirrors each firmware's release `.bin` to Pages.
+Static site on GitHub Pages. `espidi.js` is a port of the installer (layout, partition table, metadata, image checks, MD5, CRC-32); `web/test.html` checks it against vectors produced by `tools/gen_web_vectors.py` — identical bytes, including a whole merged image. `flasher.js` drives the board through Web Serial with esptool-js 0.7.0 (vendored, Apache-2.0).
+
+- **Write — full install:** erase the chip, then bootloader, HUB, slot images, partition table, slot info (the same order as the CLI). Needs the HUB build in `web/hub/` (`manifest.json` + the two binaries).
+- **Write — update:** reads the table and slot info from the board; each slot is *keep*, *replace* or *empty*; writes only the changed images, a blank placeholder for an emptied slot, then the table and slot info. NVS and files stay. Slots that are empty in the composition default to *keep* when a board with the HUB is connected, so an update never deletes a firmware by accident.
+- **Download:** one image from `0x0` to the end of the firmware area (same bytes as `espidi_hub.py image`); flashing it at `0x0` clears NVS, the file partition is not touched.
+- **Catalog:** `web/catalog/catalog.json` with the binaries next to it (GitHub release downloads are not CORS-enabled, so Pages serves them). `tools/update_catalog.py` fills sizes and SHA-256; the site verifies the checksum after downloading.
+- The preview draws the HUB menu with the HUB's own font (`font.js`, generated from `font.c`).
+
+## Planned
 - BLE controller support (`sdk/ESPidiPad`, first target: the M-VAVE SMC-PAD, based on a reverse-engineered protocol). Lives in the firmware, not in the HUB — only one app runs at a time, so the HUB cannot keep a connection for a firmware. A separate optional library (NimBLE central) so firmwares without a pad don't carry the BLE stack (~200–300 KB). Layers: BLE MIDI transport → device profile (pads/encoders/LEDs) → events delivered in `loop()`. The pad's address is stored once in the NVS namespace `espidi_pad`, so every firmware reconnects without scanning; the HUB menu can offer "forget pad" without needing BLE itself.

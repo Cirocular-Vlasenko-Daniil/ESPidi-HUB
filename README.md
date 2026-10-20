@@ -23,9 +23,18 @@ There are no fixed slot sizes. Slot 1 grows up from one end of the firmware area
 
 All firmwares share 16 KB of settings storage (NVS) and a 1 MB LittleFS partition for files, each in its own namespace and folder.
 
-## Installing
+## Composer (web)
 
-For now — the command-line installer (needs Python 3 and `pip install esptool`):
+**[cirocular-vlasenko-daniil.github.io/ESPidi-HUB](https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/)** — pick a firmware for each slot from the catalog or load your own `.bin`, see how the flash is shared and what the HUB menu will show, then:
+
+- **write it to the ESPidi over USB** right from the browser (Chrome, Edge or Opera on a computer): a full install, or an update of the slots that keeps settings and files;
+- or **download one image** for a fresh install with any flashing tool (`esptool --chip esp32c3 write_flash 0x0 espidi-custom.bin`).
+
+The site's source is in `web/`; its logic is a port of the installer below and is checked against it byte for byte (`web/test.html`).
+
+## Installing from the command line
+
+Needs Python 3 and `pip install esptool`:
 
 ```bash
 # once: erases the flash, writes the bootloader and the HUB (downloaded from the latest release)
@@ -39,7 +48,7 @@ python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 other.bin
 python3 tools/espidi_hub.py info -p /dev/cu.usbmodem1101
 ```
 
-`base` is the only command that erases settings. A web installer (Chrome/Edge, no installation) is planned.
+`base` is the only command that erases settings. `image --hub-dir <dir> --slot1 a.bin --slot2 b.bin --out custom.bin` builds the same single image as the composer.
 
 ## Writing firmwares
 
@@ -54,6 +63,7 @@ python3 tools/espidi_hub.py info -p /dev/cu.usbmodem1101
 |---|---|
 | `hub/` | ESP-IDF project: the HUB app and the custom bootloader |
 | `tools/espidi_hub.py` | installer (slot sizing, partition table, metadata) |
+| `web/` | the composer site: `espidi.js` (port of the installer), `app.js`, firmware catalog |
 | `sdk/`, `templates/` | for firmware authors |
 | `docs/ARCHITECTURE.md` | boot flow, flash layout, binary formats |
 

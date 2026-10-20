@@ -1,0 +1,272 @@
+{
+ "hashes": [
+  {
+   "input": {
+    "text": ""
+   },
+   "md5": "d41d8cd98f00b204e9800998ecf8427e",
+   "crc32": 0
+  },
+  {
+   "input": {
+    "text": "abc"
+   },
+   "md5": "900150983cd24fb0d6963f7d28e17f72",
+   "crc32": 891568578
+  },
+  {
+   "input": {
+    "lcg": [
+     1000,
+     1
+    ]
+   },
+   "md5": "47c510acfd16944187e9c3ff94da4edf",
+   "crc32": 525532444
+  },
+  {
+   "input": {
+    "lcg": [
+     64,
+     7
+    ]
+   },
+   "md5": "625f4ef6e3c0843fcb323830e726e06b",
+   "crc32": 3362076013
+  }
+ ],
+ "layouts": [
+  {
+   "sizes": [
+    0,
+    0
+   ],
+   "slot": [
+    0,
+    0
+   ],
+   "offsets": [
+    327680,
+    3080192
+   ],
+   "max": [
+    2752512,
+    2752512
+   ],
+   "free": 2818048,
+   "table_md5": "5f38035cf1cd0d939111e7b5087da8fd"
+  },
+  {
+   "sizes": [
+    430000,
+    0
+   ],
+   "slot": [
+    458752,
+    0
+   ],
+   "offsets": [
+    327680,
+    3080192
+   ],
+   "max": [
+    2752512,
+    2359296
+   ],
+   "free": 2359296,
+   "table_md5": "13aca03edbe6c0aac0bbb69287e0b494"
+  },
+  {
+   "sizes": [
+    430000,
+    1700000
+   ],
+   "slot": [
+    458752,
+    1703936
+   ],
+   "offsets": [
+    327680,
+    1441792
+   ],
+   "max": [
+    1114112,
+    2359296
+   ],
+   "free": 655360,
+   "table_md5": "1acfaeb04737f8a3cc67907a2a669bb3"
+  },
+  {
+   "sizes": [
+    2752512,
+    0
+   ],
+   "slot": [
+    2752512,
+    0
+   ],
+   "offsets": [
+    327680,
+    3080192
+   ],
+   "max": [
+    2752512,
+    65536
+   ],
+   "free": 65536,
+   "table_md5": "d734f4489528df5e6a446a62546cb99f"
+  },
+  {
+   "sizes": [
+    0,
+    2000000
+   ],
+   "slot": [
+    0,
+    2031616
+   ],
+   "offsets": [
+    327680,
+    1114112
+   ],
+   "max": [
+    786432,
+    2752512
+   ],
+   "free": 786432,
+   "table_md5": "0d7b7c655659af9d8dde2f6f486f4ad8"
+  },
+  {
+   "sizes": [
+    65536,
+    65537
+   ],
+   "slot": [
+    65536,
+    131072
+   ],
+   "offsets": [
+    327680,
+    3014656
+   ],
+   "max": [
+    2686976,
+    2752512
+   ],
+   "free": 2621440,
+   "table_md5": "35131e7cd8b9c6d8697f695944d5d0d8"
+  }
+ ],
+ "meta": [
+  {
+   "slots": [
+    {
+     "id": "redsea",
+     "name": "RED SEA",
+     "version": "1.1 beta",
+     "author": "Daniil Vlasenko",
+     "image_size": 431488,
+     "image_crc32": 3046571511
+    },
+    {
+     "id": "xxxxxxxxxxxxxxxxxxxx",
+     "name": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "version": "1.0.0-very-long-version",
+     "author": "",
+     "image_size": 1,
+     "image_crc32": 2
+    }
+   ],
+   "md5": "0d57117e7599cea68da7019cd7a0e02f"
+  },
+  {
+   "slots": [
+    {
+     "id": "",
+     "name": "",
+     "version": "",
+     "author": "",
+     "image_size": 0,
+     "image_crc32": 0
+    },
+    {
+     "id": "",
+     "name": "",
+     "version": "",
+     "author": "",
+     "image_size": 0,
+     "image_crc32": 0
+    }
+   ],
+   "md5": "daedf21298ad217e9ed7cc3d1a35901c"
+  }
+ ],
+ "images": [
+  {
+   "file": "redsea-1.0.bin",
+   "chip_id": 5,
+   "project": "arduino-lib-builder",
+   "app_version": "6671d0b",
+   "idf_version": "v5.5.5",
+   "desc": null,
+   "problems": 0
+  },
+  {
+   "file": "redsea-1.1-beta.bin",
+   "chip_id": 5,
+   "project": "arduino-lib-builder",
+   "app_version": "6671d0b",
+   "idf_version": "v5.5.5",
+   "desc": null,
+   "problems": 0
+  },
+  {
+   "file": "template-0.1.0.bin",
+   "chip_id": 5,
+   "project": "arduino-lib-builder",
+   "app_version": "6671d0b",
+   "idf_version": "v5.5.5",
+   "desc": {
+    "id": "template",
+    "name": "TEMPLATE",
+    "version": "0.1.0",
+    "author": "Your Name"
+   },
+   "problems": 0
+  }
+ ],
+ "merged": {
+  "bootloader": [
+   20000,
+   2
+  ],
+  "hub": [
+   150000,
+   3
+  ],
+  "slots": [
+   "redsea-1.1-beta.bin",
+   "template-0.1.0.bin"
+  ],
+  "metas": [
+   {
+    "id": "redsea",
+    "name": "RED SEA",
+    "version": "1.1 beta",
+    "author": "Daniil Vlasenko",
+    "image_size": 431488,
+    "image_crc32": 2774929692
+   },
+   {
+    "id": "template",
+    "name": "TEMPLATE",
+    "version": "0.1.0",
+    "author": "ESPidi HUB",
+    "image_size": 397472,
+    "image_crc32": 2812208628
+   }
+  ],
+  "size": 3145728,
+  "md5": "8657d4cb315821482a89307bcf142e13"
+ }
+}

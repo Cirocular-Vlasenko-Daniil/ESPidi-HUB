@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESPidi HUB web tests</title>
+<style>
+  body { font: 14px/1.5 ui-monospace, Menlo, monospace; background: #111; color: #ddd; padding: 16px; }
+  .pass { color: #6c6; } .fail { color: #f66; } h1 { font-size: 16px; }
+</style>
+</head>
+<body>
+<h1>espidi.js vs tools/espidi_hub.py</h1>
+<p>Vectors: <code>python3 tools/gen_web_vectors.py</code></p>
+<pre id="out">running…</pre>
+<script type="module">
+import * as E from "./espidi.js";
+
+const out = document.getElementById("out");
+const lines = [];
+let pass = 0, fail = 0;
+function check(name, got, want) {
+  const ok = JSON.stringify(got) === JSON.stringify(want);
+  ok ? pass++ : fail++;
+  lines.push(`<span class="${ok ? "pass" : "fail"}">${ok ? "PASS" : "FAIL"}</span> ${name}` +
+    (ok ? "" : `\n     got  ${JSON.stringify(got)}\n     want ${JSON.stringify(want)}`));
+}
+
+// Same generator as lcg() in tools/gen_web_vectors.py
+function lcg(n, seed) {
+  let x = seed >>> 0;
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    x = (Math.imul(x, 1103515245) + 12345) >>> 0;
+    out[i] = (x >>> 16) & 0xFF;
+  }
+  return out;
+}
+
+const metaFromPy = (m) => ({ id: m.id, name: m.name, version: m.version, author: m.author,
+  imageSize: m.image_size, imageCrc32: m.image_crc32 });
+
+async function file(name) {
+  return new Uint8Array(await (await fetch(`catalog/${name}`)).arrayBuffer());
+}
+
+try {
+  const v = await (await fetch("test-vectors.json")).json();
+
+  for (const h of v.hashes) {
+    const data = "text" in h.input ? new TextEncoder().encode(h.input.text) : lcg(...h.input.lcg);
+    const label = JSON.stringify(h.input);
+    check(`md5 ${label}`, E.md5hex(data), h.md5);
+    check(`crc32 ${label}`, E.crc32(data), h.crc32);
+  }
+
+  for (const l of v.layouts) {
+    const lay = new E.Layout(l.sizes.map((s) => (s ? E.alignUp(s) : 0)));
+    check(`layout ${l.sizes}: slots`, lay.slot, l.slot);
+    check(`layout ${l.sizes}: offsets`, [lay.offset(0), lay.offset(1)], l.offsets);
+    check(`layout ${l.sizes}: max`, [lay.maxSize(0), lay.maxSize(1)], l.max);
+    check(`layout ${l.sizes}: free`, lay.free(), l.free);
+    const table = E.buildTable(lay.partitions());
+    check(`layout ${l.sizes}: table md5`, E.md5hex(table), l.table_md5);
+    check(`layout ${l.sizes}: table parses back`, E.layoutFromTable(E.parseTable(table)).slot,
+      lay.slot.map((s) => s || E.PLACEHOLDER));
+  }
+
+  for (const [i, m] of v.meta.entries()) {
+    const packed = E.packMeta(m.slots.map(metaFromPy));
+    check(`meta ${i}: md5`, E.md5hex(packed), m.md5);
+    const back = E.unpackMeta(packed);
+    check(`meta ${i}: round trip name`, back[0].name, m.slots[0].name.slice(0, 23));
+  }
+  check("meta: blank sector reads empty", E.unpackMeta(new Uint8Array(E.META_SIZE).fill(0xFF)),
+    [E.emptyMeta(), E.emptyMeta()]);
+
+  for (const { file: name, ...img } of v.images) {
+    const info = E.inspectImage(await file(name));
+    check(`image ${name}`, {
+      chip_id: info.chipId, project: info.project, app_version: info.appVersion, idf_version: info.idfVersion,
+      desc: info.desc, problems: info.problems.length,
+    }, img);
+  }
+
+  // planWrites: what gets written where (no Python counterpart — expected values by hand).
+  const img = (n) => ({ kind: "image", data: new Uint8Array(n).fill(1), meta: { id: "x", name: "X", version: "1", author: "" } });
+  const dev = { hub: true, layout: new E.Layout([0x70000, 0x80000]),
+    meta: [{ ...E.emptyMeta(), name: "A", imageSize: 400000 }, { ...E.emptyMeta(), name: "B", imageSize: 500000 }] };
+  const tail = (p) => p.files.slice(-2).map((f) => f.address);
+
+  let p = E.planWrites({ sources: [img(500000), { kind: "keep" }], device: dev, full: false });
+  check("plan update: replace slot 1, keep slot 2", p.files.map((f) => [f.label, f.address]),
+    [["slot 1", 0x50000], ["partition table", 0x8000], ["slot info", 0xD000]]);
+  check("plan update: layout", [p.layout.slot, p.layout.offset(1)], [[0x80000, 0x80000], 0x280000]);
+  check("plan update: kept slot keeps its info", p.meta[1].name, "B");
+
+  p = E.planWrites({ sources: [{ kind: "keep" }, { kind: "empty" }], device: dev, full: false });
+  check("plan update: emptied slot gets a blank placeholder before the table",
+    p.files.map((f) => [f.label, f.address, f.data.length, f.data[0]]),
+    [["slot 2 (empty)", 0x2F0000, 0x10000, 0xFF], ["partition table", 0x8000, 0xC00, 0xAA], ["slot info", 0xD000, 0x1000, 0x45]]);
+
+  p = E.planWrites({ sources: [img(300000), img(900000)], device: null, full: true,
+    bootloader: new Uint8Array(100), hub: new Uint8Array(200) });
+  check("plan full: erase + order", [p.erase, p.files.map((f) => f.address)],
+    [true, [0x0, 0x10000, 0x50000, 0x300000 - 0xE0000, 0x8000, 0xD000]]);
+  check("plan: table and info are written last", tail(p), [0x8000, 0xD000]);
+
+  const m = v.merged;
+  const sources = await Promise.all(m.slots.map(async (name, i) => ({
+    kind: "image", data: await file(name), meta: metaFromPy(m.metas[i]) })));
+  const { image } = E.buildImage({ bootloader: lcg(...m.bootloader), hub: lcg(...m.hub), sources });
+  check("merged image size", image.length, m.size);
+  check("merged image md5", E.md5hex(image), m.md5);
+} catch (e) {
+  fail++;
+  lines.push(`<span class="fail">ERROR</span> ${e.stack || e}`);
+}
+
+out.innerHTML = lines.join("\n") + `\n\n${pass} passed, ${fail} failed`;
+document.title = fail ? `FAIL ${fail}` : `PASS ${pass}`;
+</script>
+</body>
+</html>
