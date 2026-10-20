@@ -34,6 +34,10 @@ When the HUB starts your firmware it shows a 64×32 picture next to the name and
 
 Everything about covers — drawing, where they come from, checking, the format: **[sdk/ESPidiHub/COVERS.md](../sdk/ESPidiHub/COVERS.md)**.
 
+## Bluetooth pad
+
+An M-VAVE SMC-PAD Pro can be a firmware's controller over Bluetooth: pads, encoders and buttons as events, the pads' RGB LEDs, paired once for every firmware on the board. Use the library [sdk/ESPidiPad](../sdk/ESPidiPad/README.md) (it adds ~330 KB); never talk to the pad's config service yourself.
+
 ## Rules
 
 **Must**

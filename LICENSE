@@ -25,3 +25,10 @@ SOFTWARE.
 hub/bootloader_components/main/bootloader_start.c is based on ESP-IDF
 (https://github.com/espressif/esp-idf), Copyright 2015-2024 Espressif Systems
 (Shanghai) CO LTD, licensed under the Apache License, Version 2.0.
+
+sdk/ESPidiPad/extras/smc_pad_ble/ and sdk/ESPidiPad/src/SmcPadProtocol.h are the
+SMC-PAD Pro BLE kit by Ruslan Mazavin (pi32v2_re), included unchanged with its
+permission for use in public projects; the licence of the kit's own files is not
+set yet by its author (see sdk/ESPidiPad/extras/smc_pad_ble/NOTICE.md). Facts in it
+tagged [app], [capture] and [smc-pad] come from spectalive/smc-pad
+(https://github.com/spectalive/smc-pad), Copyright 2026 Cristian Deluxe, Apache-2.0.

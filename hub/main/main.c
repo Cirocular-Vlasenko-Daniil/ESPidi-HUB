@@ -5,6 +5,8 @@
 //   encoder button               -> menu
 //   nothing                      -> the firmware started last time
 //
+// The menu also offers FORGET PAD when a firmware using sdk/ESPidiPad has paired a pad.
+//
 // The splash is a placeholder for now.
 #include <stdio.h>
 #include <string.h>
@@ -23,6 +25,7 @@
 #define SPLASH_MS   1200
 #define REDRAW_MS   40
 #define NVS_NS      "espidihub"
+#define PAD_NS      "espidi_pad"   // written by sdk/ESPidiPad: the pad every firmware connects to
 #define CHOICE_NONE (-1)
 #define CHOICE_MENU (-2)
 
@@ -159,6 +162,42 @@ static int splash(void)
     }
 }
 
+// A firmware using sdk/ESPidiPad has paired a pad.
+static bool pad_known(void)
+{
+    nvs_handle_t h;
+    size_t n = 0;
+    if (!nvs_ok || nvs_open(PAD_NS, NVS_READONLY, &h) != ESP_OK) return false;
+    bool known = nvs_get_blob(h, "addr", NULL, &n) == ESP_OK && n == 6;
+    nvs_close(h);
+    return known;
+}
+
+// Only this namespace: the bond in "nimble_bond" stays and is replaced at the next pairing.
+static void forget_pad(void)
+{
+    oled_clear();
+    oled_text_center(6, "FORGET PAD?", 1, true);
+    oled_text_center(18, "ENC=YES  PLAY=NO", 1, true);
+    oled_flush();
+    input_pressed(BTN_ENC);
+    input_pressed(BTN_PLAY);
+    input_pressed(BTN_PAGE);
+    for (;;) {
+        input_poll();
+        if (input_pressed(BTN_PLAY) || input_pressed(BTN_PAGE)) return;
+        if (input_pressed(BTN_ENC)) break;
+        vTaskDelay(1);
+    }
+    nvs_handle_t h;
+    bool ok = nvs_open(PAD_NS, NVS_READWRITE, &h) == ESP_OK;
+    if (ok) {
+        ok = nvs_erase_all(h) == ESP_OK && nvs_commit(h) == ESP_OK;
+        nvs_close(h);
+    }
+    message(ok ? "PAD FORGOTTEN" : "NVS ERROR", NULL, 1000);
+}
+
 static void draw_menu(int sel)
 {
     char line[32];
@@ -171,7 +210,8 @@ static void draw_menu(int sel)
         oled_text(0, 8 + 8 * i, line, 1, true);
     }
     uint32_t tenths = (uint32_t)((uint64_t)slots_free_bytes(slot) * 10 / (1024 * 1024));
-    snprintf(line, sizeof(line), "FREE %lu.%luMB ENC=RUN", (unsigned long)(tenths / 10), (unsigned long)(tenths % 10));
+    if (sel == HUB_SLOTS) snprintf(line, sizeof(line), ">  FORGET PAD");   // the line under the slots
+    else snprintf(line, sizeof(line), "FREE %lu.%luMB ENC=RUN", (unsigned long)(tenths / 10), (unsigned long)(tenths % 10));
     oled_text(0, 24, line, 1, true);
     oled_flush();
 }
@@ -183,16 +223,26 @@ static void __attribute__((noreturn)) menu(int sel)
     input_pressed(BTN_PAGE);
     input_pressed(BTN_ENC);
     bool dirty = true;
+    int items = HUB_SLOTS + (pad_known() ? 1 : 0);
     for (;;) {
         input_poll();
         int d = input_encoder();
         if (d) {
-            sel = ((sel + d) % HUB_SLOTS + HUB_SLOTS) % HUB_SLOTS;
+            sel = ((sel + d) % items + items) % items;
             dirty = true;
         }
         if (input_pressed(BTN_PLAY)) { try_launch(0); dirty = true; }
         if (input_pressed(BTN_PAGE)) { try_launch(1); dirty = true; }
-        if (input_pressed(BTN_ENC)) { try_launch(sel); dirty = true; }
+        if (input_pressed(BTN_ENC)) {
+            if (sel < HUB_SLOTS) {
+                try_launch(sel);
+            } else {
+                forget_pad();
+                items = HUB_SLOTS + (pad_known() ? 1 : 0);
+                sel = 0;
+            }
+            dirty = true;
+        }
         if (dirty) {
             draw_menu(sel);
             dirty = false;

@@ -56,6 +56,7 @@ python3 tools/espidi_hub.py info -p /dev/cu.usbmodem1101
 - [docs/FIRMWARE_GUIDE.ru.md](docs/FIRMWARE_GUIDE.ru.md) — правила, распиновка, хранение данных, размер, сборка, публикация ([in English](docs/FIRMWARE_GUIDE.md)).
 - [AGENTS.md](AGENTS.md) — те же правила в виде чек-листа для ИИ-агентов.
 - `sdk/ESPidiHub` — библиотека Arduino: распиновка, дескриптор `ESPIDI_FIRMWARE()`, `ESPIDI_COVER()`, безопасная работа с файлами, `rebootToHub()`. Обложки: [sdk/ESPidiHub/COVERS.ru.md](sdk/ESPidiHub/COVERS.ru.md).
+- `sdk/ESPidiPad` — M-VAVE SMC-PAD Pro по Bluetooth как контроллер: события, RGB-пэды, общее сопряжение ([README](sdk/ESPidiPad/README.ru.md)); основа — кит SMC-PAD Pro по BLE Руслана Мазавина.
 - `templates/arduino-firmware` — готовый репозиторий по SDK для копирования: скетч, `espidi.json`, `cover.png` и workflow для GitHub Actions, который собирает, проверяет и публикует `.bin`, чтобы сборщик ставил прошивку по ссылке.
 
 ## Репозиторий

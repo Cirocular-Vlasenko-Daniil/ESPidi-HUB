@@ -31,7 +31,7 @@ HUB: splash ─┬─ PLAY held ─► slot 1 ┐
 - **HUB start after a software reset with otadata pointing at a slot** can only mean the bootloader refused that slot; the HUB then shows `SLOT n BROKEN` and opens the menu instead of auto-starting anything (no boot loop).
 - **Back to the HUB from a firmware:** `espidi::rebootToHub()` = `esp_ota_set_boot_partition(hub)` + `esp_restart()`.
 - **Last used slot:** NVS namespace `espidihub`, key `last` (u8, 0/1), written only when it changes.
-- **NVS namespaces:** each firmware uses its descriptor `id`. Reserved: `espidihub` (HUB), `espidi_pad` (pairing shared by all firmwares, see Planned), `nimble_bond` (NimBLE bonds).
+- **NVS namespaces:** each firmware uses its descriptor `id`. Reserved: `espidihub` (HUB), `espidi_pad` (the paired SMC-PAD, shared by all firmwares, see "Bluetooth controller"), `nimble_bond` (NimBLE bonds).
 - **TAP (GPIO2) is not used at boot**: it is a strapping pin, the chip may not boot if it is held LOW at reset.
 
 ## Flash layout (4 MB)
@@ -169,5 +169,15 @@ Paths are relative to `espidi.json`, `/`-separated, without `.`/`..`/empty segme
 
 **Publishing** (`templates/arduino-firmware/.github/workflows/firmware.yml`): `repo . --sync-cover` → build → `repo . --build BIN` → `repo . --build BIN --publish` copies the build to `firmware` when there is none yet, or its descriptor version or embedded cover differs from the committed one (builds of the same version differ only by timestamps, so that would commit on every push) → the workflow commits and pushes it with the workflow token (such commits don't trigger workflows).
 
+## Bluetooth controller (`sdk/ESPidiPad`)
+
+A stock M-VAVE SMC-PAD Pro as a controller for firmwares; the protocol is the SMC-PAD Pro BLE kit (Ruslan Mazavin, pi32v2_re), kept unchanged in `sdk/ESPidiPad/extras/smc_pad_ble/` — its PROTOCOL.md is the reference.
+
+- **In the firmware, not in the HUB:** only one app runs at a time, so the HUB cannot hold a connection for a firmware. An optional library, so firmwares without a pad don't carry the BLE stack (~330 KB). It uses Arduino-ESP32's BLE library on NimBLE (central), no other dependency.
+- **Shared pairing:** `pair()` scans for a pad in pairing mode, checks its identity reply (`SMC-PAD…`), pairs with just-works bonding and stores the pad in NVS `espidi_pad` (`addr` = 6 bytes in NimBLE order, `type`, `id`). Bonds are in NimBLE's `nimble_bond`. Every firmware then reconnects with `begin()`. The HUB menu shows FORGET PAD while `espidi_pad/addr` exists and erases that namespace on confirmation (the HUB has no BLE); the next `pair()` deletes the old bond of that address first.
+- **Two halves:** `PadCore.h` (no BLE, no heap, host-tested) holds the session — identity → region 4 → region 5 (all 28 KiB as MidiSuite does while the kit's bench question 1 is open, or only the active profile with `fullSync = false`), one request in flight (800 ms timeout, 4 s for 1,009-byte reads, 3 tries, then reconnect), a region-4 poll every 2 s to follow profile switches on the pad, LED wishes coalesced (latest colour wins; four or more in a bank → one 431-byte bank write of whole records) — and maps the pad's MIDI to pad / encoder / button events through the active profile. `ESPidiPad.cpp` is the BLE half: a FreeRTOS task (connect with a 4 s cancel timer, GATT discovery, AE42 and BLE-MIDI notifications, writes split to MTU−3), a stream buffer for AE42 bytes, a queue of MIDI messages and state events for `loop()`, a mutex around the session.
+- **Rules:** packets come only from the kit's `SmcPadProtocol.h`, which refuses region 0, writes to region 3, `save0` and out-of-range access; the library has no call that writes the pad's flash.
+- **Not seen on a device yet:** everything above is from the kit and the fake-pad tests. `examples/PadLab` prints what the kit's OPEN_QUESTIONS.md asks for (identity, address type, security, MTU, interval, time to ready, records).
+
 ## Planned
-- BLE controller support (`sdk/ESPidiPad`, first target: the M-VAVE SMC-PAD, based on a reverse-engineered protocol). Lives in the firmware, not in the HUB — only one app runs at a time, so the HUB cannot keep a connection for a firmware. A separate optional library (NimBLE central) so firmwares without a pad don't carry the BLE stack (~200–300 KB). Layers: BLE MIDI transport → device profile (pads/encoders/LEDs) → events delivered in `loop()`. The pad's address is stored once in the NVS namespace `espidi_pad`, so every firmware reconnects without scanning; the HUB menu can offer "forget pad" without needing BLE itself.
+- Settle the kit's open questions on a real pad (PAD LAB), then decide `fullSync`'s default.

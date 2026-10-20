@@ -1,0 +1,64 @@
+{
+ "_notice": "From the pi32v2_re project: Ruslan Mazavin, with Claude Opus 5.5 and Claude Opus 4.8. See NOTICE.md.",
+ "generated_by": "ref/make_vectors.py from ref/smc_pad_protocol.py",
+ "refused": [
+  "read(0, 0, 4)",
+  "write(3, 1, [0])",
+  "write(5, 0x6E96, [1,2,3])",
+  "read(5, 0x80000000, 1)",
+  "save_profiles(false)",
+  "write(5, 0, [])"
+ ],
+ "vectors": [
+  {
+   "name": "identity",
+   "call": "identity()",
+   "bytes": "00 59 11 00 00 00 FF"
+  },
+  {
+   "name": "read_region4",
+   "call": "read(4, 0, 12)",
+   "bytes": "00 59 23 08 00 00 04 00 00 00 00 0C 00 00 EF"
+  },
+  {
+   "name": "read_region5_first",
+   "call": "read(5, 0, 1009)",
+   "bytes": "00 59 23 08 00 00 05 00 00 00 00 F1 03 00 06"
+  },
+  {
+   "name": "read_region5_last",
+   "call": "read(5, 0x6E5C, 60)",
+   "bytes": "00 59 23 08 00 00 05 5C 6E 00 00 3C 00 00 F4"
+  },
+  {
+   "name": "color_p0_pad3_red",
+   "call": "color_write(0, 3, 255, 0, 0)",
+   "bytes": "00 59 22 0B 00 00 05 26 01 00 00 03 00 00 FF 00 00 D1"
+  },
+  {
+   "name": "color_p0_pad32_black",
+   "call": "color_write(0, 32, 0, 0, 0)",
+   "bytes": "00 59 22 0B 00 00 05 18 04 00 00 03 00 00 00 00 00 DB"
+  },
+  {
+   "name": "color_p7_pad127_white",
+   "call": "color_write(7, 127, 255, 255, 255)",
+   "bytes": "00 59 22 0B 00 00 05 83 6E 00 00 03 00 00 FF FF FF 09"
+  },
+  {
+   "name": "write_region4_byte10",
+   "call": "write(4, 10, [1])",
+   "bytes": "00 59 22 09 00 00 04 0A 00 00 00 01 00 00 01 EF"
+  },
+  {
+   "name": "save_profiles",
+   "call": "save_profiles(true)",
+   "bytes": "00 59 22 08 00 00 05 00 00 00 00 00 00 00 FA"
+  },
+  {
+   "name": "midi_to_pad_note",
+   "call": "midi_to_pad([0x90, 0x24, 0x7F])",
+   "bytes": "00 59 15 03 00 00 90 24 7F CC"
+  }
+ ]
+}
