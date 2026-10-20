@@ -1,4 +1,6 @@
+import contextlib
 import glob
+import io
 import os
 import struct
 import subprocess
@@ -322,6 +324,13 @@ class RepoTest(unittest.TestCase):
         self.assertEqual(rep.cover, self.bits)
         self.assertTrue(any("not in the repository" in p for p in rep.problems))
         self.assertEqual(hub.check_repo(hub.LocalRepo(self.dir), need_firmware=False).problems, [])
+
+    def test_first_workflow_run_before_anything_is_published(self):
+        # firmware.yml runs "repo . --sync-cover" before the build; a new repository has no .bin yet.
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(hub.main(["repo", self.dir, "--sync-cover"]), 0)
+            self.assertEqual(hub.main(["repo", self.dir]), 1)
+        self.assertTrue(os.path.exists(os.path.join(self.dir, "Demo", "cover.h")))
 
     def test_sync_cover_writes_a_compilable_header(self):
         path = hub.sync_cover(self.dir, self.manifest, self.bits)

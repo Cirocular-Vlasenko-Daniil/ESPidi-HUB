@@ -919,7 +919,7 @@ def cmd_repo(args) -> int:
         src = open_repo(args.target)
         if isinstance(src, GithubRepo) and (args.sync_cover or args.publish):
             raise RepoError("--sync-cover and --publish work on a local checkout")
-        rep = check_repo(src, need_firmware=not args.build)
+        rep = check_repo(src, need_firmware=not (args.build or args.sync_cover))  # both run before the first publish
     except RepoError as e:
         print(f"ERROR:    {e}")
         return 1
