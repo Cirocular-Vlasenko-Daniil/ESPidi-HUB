@@ -161,7 +161,7 @@ python3 tools/espidi_hub.py repo .              # your checkout
 python3 tools/espidi_hub.py repo owner/repo     # what the site loads from GitHub
 ```
 
-**Branches and folders:** `owner/repo@beta` loads the `beta` branch (or a tag, or a commit); a link like `https://github.com/owner/repo/tree/beta/firmware` loads `espidi.json` from the `firmware` folder of `beta`. A link that opens the composer with your firmware in a slot: `https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/?play=owner/repo` (`page=` for slot 2) — handy for your README.
+**Branches and folders:** `owner/repo@beta` loads the `beta` branch (or a tag, or a commit); a link like `https://github.com/owner/repo/tree/beta/firmware` loads `espidi.json` from the `firmware` folder of `beta`. A link that opens the composer with your firmware in a slot: `https://espidi-hub.github.io/?play=owner/repo` (`page=` for slot 2) — handy for your README.
 
 To be listed in the composer's catalog, open a pull request adding `{"source": "owner/repo", "channel": "stable", …}` to `web/catalog/catalog.json`.
 

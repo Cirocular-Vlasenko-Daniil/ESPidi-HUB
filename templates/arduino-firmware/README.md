@@ -1,6 +1,6 @@
 # Arduino firmware template
 
-An ESPidi-ready repository: paste its address into the [ESPidi composer](https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/) (tab **GitHub**) and the firmware arrives with its name, cover and description.
+An ESPidi-ready repository: paste its address into the [ESPidi composer](https://espidi-hub.github.io/) (tab **GitHub**) and the firmware arrives with its name, cover and description.
 
 ```
 espidi.json                      what the composer reads: sketch, built firmware, cover, summary

@@ -25,7 +25,7 @@ All firmwares share 16 KB of settings storage (NVS) and a 1 MB LittleFS partitio
 
 ## Composer (web)
 
-**[cirocular-vlasenko-daniil.github.io/ESPidi-HUB](https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/)** — pick a firmware for each slot from the catalog, **paste a GitHub repository** made with the SDK (`owner/repo` — the firmware, its cover and description come straight from it) or load your own `.bin`, give it a cover (the firmware's own, or any picture — 64×32 and its multiples go pixel for pixel, anything else is scaled and dithered), see how the flash is shared and what the HUB will show, then:
+**[espidi-hub.github.io](https://espidi-hub.github.io/)** — pick a firmware for each slot from the catalog, **paste a GitHub repository** made with the SDK (`owner/repo` — the firmware, its cover and description come straight from it) or load your own `.bin`, give it a cover (the firmware's own, or any picture — 64×32 and its multiples go pixel for pixel, anything else is scaled and dithered), see how the flash is shared and what the HUB will show, then:
 
 - **write it to the ESPidi over USB** right from the browser (Chrome, Edge or Opera on a computer): a full install, or an update of the slots that keeps settings and files;
 - or **download one image** for a fresh install with any flashing tool (`esptool --chip esp32c3 write_flash 0x0 espidi-custom.bin`).

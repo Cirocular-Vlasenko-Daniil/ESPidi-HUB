@@ -161,7 +161,7 @@ python3 tools/espidi_hub.py repo .              # ваша локальная к
 python3 tools/espidi_hub.py repo owner/repo     # то, что сайт загрузит с GitHub
 ```
 
-**Ветки и папки:** `owner/repo@beta` загрузит ветку `beta` (или тег, или коммит); ссылка вида `https://github.com/owner/repo/tree/beta/firmware` — `espidi.json` из папки `firmware` ветки `beta`. Ссылка, открывающая сборщик сразу с вашей прошивкой в слоте: `https://cirocular-vlasenko-daniil.github.io/ESPidi-HUB/?play=owner/repo` (`page=` — для слота 2); удобно поставить в README.
+**Ветки и папки:** `owner/repo@beta` загрузит ветку `beta` (или тег, или коммит); ссылка вида `https://github.com/owner/repo/tree/beta/firmware` — `espidi.json` из папки `firmware` ветки `beta`. Ссылка, открывающая сборщик сразу с вашей прошивкой в слоте: `https://espidi-hub.github.io/?play=owner/repo` (`page=` — для слота 2); удобно поставить в README.
 
 Чтобы попасть в каталог сборщика, пришлите pull request с записью `{"source": "owner/repo", "channel": "stable", …}` в `web/catalog/catalog.json`.
 
