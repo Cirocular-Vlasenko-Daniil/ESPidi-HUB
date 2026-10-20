@@ -210,10 +210,10 @@ async function loadGithub(i, text) {
 // ?play=owner/repo&page=owner/repo — a link that opens the composer with these firmwares.
 function syncUrl() {
   const params = new URLSearchParams(location.search);
+  ["play", "page"].forEach((key) => params.delete(key));
   ["play", "page"].forEach((key, i) => {
     const s = state.slots[i];
-    if (s.mode === "github" && s.gh.spec) params.set(key, G.formatSpec(s.gh.spec));
-    else params.delete(key);
+    if (s.mode === "github" && s.gh.spec) params.append(key, G.formatSpec(s.gh.spec));
   });
   // owner/repo@ref reads better than owner%2Frepo%40ref, and is just as valid in a query.
   const query = params.toString().replace(/%2F/gi, "/").replace(/%40/gi, "@");
