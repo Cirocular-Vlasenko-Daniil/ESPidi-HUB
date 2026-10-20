@@ -1,0 +1,16 @@
+# ESP-IDF
+hub/build/
+hub/sdkconfig
+hub/sdkconfig.old
+hub/managed_components/
+hub/dependencies.lock
+
+# Python
+__pycache__/
+*.pyc
+
+# Arduino / local builds
+out/
+build/
+
+.DS_Store

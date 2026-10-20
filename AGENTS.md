@@ -1,0 +1,96 @@
+# AGENTS.md — ESPidi HUB
+
+Instructions for AI coding agents. Two tasks happen in this ecosystem; find yours below.
+Humans: the same content with explanations is in [docs/FIRMWARE_GUIDE.md](docs/FIRMWARE_GUIDE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+---
+
+## Task A — writing a firmware that runs in an ESPidi HUB slot
+
+### Context
+
+- Board: ESPidi = ESP32-C3 Super Mini, 4 MB flash, SSD1306 128×32 OLED, rotary encoder, 3 buttons, DIN MIDI in/out.
+- The HUB owns the bootloader, the partition table and slot selection. Your firmware is a plain app image installed into slot 1 or slot 2.
+- A correct firmware does not need to know about the HUB. The SDK (`sdk/ESPidiHub/src/ESPidiHub.h`, header-only) adds a name for the HUB menu, safe file storage and a way back to the HUB.
+
+### Hard rules — every item is mandatory
+
+1. Target `esp32:esp32:esp32c3` (Arduino-ESP32 3.x) or ESP-IDF v5.x with target `esp32c3`.
+2. Add exactly one descriptor at file scope:
+   `ESPIDI_FIRMWARE("<id>", "<NAME>", "<x.y.z>", "<author>");`
+   - `id`: lowercase `[a-z0-9_]`, ≤ 15 chars, unique to this firmware. Reserved, never use: `espidihub`, `espidi_pad`, `nimble_bond`.
+   - `name` ≤ 23, `version` ≤ 15, `author` ≤ 23 chars.
+3. Settings: `Preferences` (NVS) with namespace = `id`. Nothing else in NVS.
+4. Files: only via `espidi::mountFiles()` and only under `"/" + id`; use `espidi::dataDir(id)`.
+5. NEVER call: `nvs_flash_erase`, `nvs_flash_erase_partition`, `LittleFS.format`, `LittleFS.begin(true, …)`, `SPIFFS.*`, `FFat.*`, `Update.*`, `esp_ota_begin/write/end`, `esp_https_ota*`, `esp_ota_set_boot_partition` (except through `espidi::rebootToHub()`), `esp_partition_erase_range`, `esp_partition_write`, `spi_flash_*` writes, `esp_flash_write/erase*`.
+6. NEVER ship a custom partition table, bootloader or merged image. The deliverable is `<sketch>.ino.bin` only.
+7. Use the ESPidi pins below via `espidi::pin::*`. Buttons and encoder: `INPUT_PULLUP`, active LOW.
+8. Do not require TAP (GPIO2) to be held at power-on — strapping pin.
+9. To return to the HUB, call `espidi::rebootToHub()`. `esp_restart()` restarts your own firmware.
+
+### Constants
+
+| Name | Value |
+|---|---|
+| `espidi::pin::PLAY` | GPIO1 |
+| `espidi::pin::TAP` | GPIO2 (strapping) |
+| `espidi::pin::LR` | GPIO3 |
+| `espidi::pin::ENC_SW` | GPIO4 |
+| `espidi::pin::ENC_B` / `ENC_A` | GPIO5 / GPIO6 |
+| `espidi::pin::MIDI_RX` / `MIDI_TX` | GPIO7 / GPIO10 — UART1, `espidi::MIDI_BAUD` = 31250, 8N1 |
+| `espidi::pin::OLED_SDA` / `OLED_SCL` | GPIO8 / GPIO9 — I²C, `espidi::OLED_ADDR` = 0x3C, 128×32 |
+| NVS | partition `nvs`, 16 KB shared by all firmwares |
+| Files | partition `spiffs`, LittleFS, 1 MB shared |
+| Max image | 2.62 MB alone; otherwise the free space `espidi_hub.py check`/`info` reports |
+
+### Boot semantics
+
+Power-on and the RESET button start the HUB. `esp_restart()`, panics, watchdogs and deep-sleep wake start your firmware again. `espidi::rebootToHub()` starts the HUB.
+
+### Start from the template
+
+`templates/arduino-firmware/ESPidiTemplate/ESPidiTemplate.ino` shows display, buttons, MIDI out, settings, files and the way back to the HUB. CI template: `templates/arduino-firmware/.github/workflows/firmware.yml`.
+
+### Verify before you report done
+
+```bash
+arduino-cli compile --fqbn esp32:esp32:esp32c3 --warnings all \
+  --library <ESPidi-HUB>/sdk/ESPidiHub --output-dir out <SketchFolder>
+python3 <ESPidi-HUB>/tools/espidi_hub.py check --require-descriptor out/<Sketch>.ino.bin
+```
+
+Done means: it compiles without warnings from your code, `check` exits 0, and a search of your sources finds none of the forbidden calls from rule 5. If a sketch exceeds Arduino's 1.25 MB default, compile with `esp32:esp32:esp32c3:PartitionScheme=huge_app` (this lifts only Arduino's check).
+
+If the user can test on hardware, ask them to confirm: both slots start, settings of the other firmware survive, power cycle → HUB, `rebootToHub()` → HUB.
+
+---
+
+## Task B — changing ESPidi HUB itself
+
+### Map
+
+| Path | What |
+|---|---|
+| `hub/bootloader_components/main/bootloader_start.c` | second-stage bootloader; ESP-IDF v5.5 `bootloader_start.c` + `espidi_hub_select()` |
+| `hub/main/` | HUB app (pure ESP-IDF, C): `main.c` flow, `oled.c`, `font.c`, `input.c`, `slots.c` |
+| `hub/partitions.csv` | empty flash layout |
+| `tools/espidi_hub.py` | installer, layout math, partition table / metadata / image formats |
+| `tools/tests/` | unit tests (`python3 -m unittest discover -s tools/tests`) |
+| `sdk/ESPidiHub/` | Arduino library for firmwares |
+| `docs/ARCHITECTURE.md` | the specification — update it with any change to formats or layout |
+
+### Invariants — do not break
+
+1. The flash layout is a contract with every installed device: offsets and sizes of `nvs`, `espidi`, `otadata`, `hub`, `spiffs`, and the slot anchors `0x50000` / `0x300000`. Changing them requires a format bump and a migration plan agreed with the user.
+2. `hub/partitions.csv` == `empty_layout()` in `tools/espidi_hub.py`, byte for byte (CI checks; the unit test compares with `gen_esp32part.py` when it is available).
+3. The partition table always contains `ota_0` and `ota_1` (empty slots keep a 64 KB placeholder).
+4. Binary formats (metadata sector, firmware descriptor) are defined three times — `hub/main/slots.c`, `tools/espidi_hub.py`, `sdk/ESPidiHub/src/ESPidiHub.h`. Change all three and `docs/ARCHITECTURE.md` together.
+5. The HUB and the installer never erase NVS or the file partition (only `base` erases the whole chip, after confirmation).
+6. The HUB never auto-starts a slot after the bootloader refused it (no boot loops).
+7. Keep the HUB under 256 KB and the bootloader under 32 KB (CI checks).
+
+### Build and test
+
+- HUB + bootloader: GitHub Actions (`.github/workflows/build.yml`, `espressif/esp-idf-ci-action`, IDF v5.5, target `esp32c3`). Locally, if ESP-IDF is installed: `cd hub && idf.py set-target esp32c3 && idf.py build`.
+- Installer: `python3 -m unittest discover -s tools/tests -v`.
+- SDK: compile the template (see Task A).

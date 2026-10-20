@@ -1,0 +1,12 @@
+# ESPidi HUB flash layout, 4 MB. The two slots are sized by the installer
+# (tools/espidi_hub.py): slot1 grows up from 0x50000, slot2 grows down to 0x300000.
+# This file is the empty layout written on first install — keep it identical to
+# empty_layout() in tools/espidi_hub.py (CI compares the two).
+# Name,   Type, SubType, Offset,   Size,     Flags
+nvs,      data, nvs,     0x9000,   0x4000,
+espidi,   0x40, 0x00,    0xD000,   0x1000,
+otadata,  data, ota,     0xE000,   0x2000,
+hub,      app,  factory, 0x10000,  0x40000,
+slot1,    app,  ota_0,   0x50000,  0x10000,
+slot2,    app,  ota_1,   0x2F0000, 0x10000,
+spiffs,   data, spiffs,  0x300000, 0x100000,
