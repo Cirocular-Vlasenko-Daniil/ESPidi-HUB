@@ -1,0 +1,93 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # releases on v* tags
+
+env:
+  ARDUINO_ESP32_URL: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+
+jobs:
+  tools:
+    name: Installer tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tools/tests -v
+
+  hub:
+    name: HUB + bootloader (ESP-IDF v5.5)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5
+          target: esp32c3
+          path: hub
+
+      - name: Partition table matches the installer
+        run: |
+          python3 tools/espidi_hub.py table --out /tmp/pt.bin
+          cmp hub/build/partition_table/partition-table.bin /tmp/pt.bin
+
+      - name: Sizes fit the layout
+        run: |
+          python3 - <<'EOF'
+          import os
+          for path, limit in (("hub/build/bootloader/bootloader.bin", 0x8000),
+                              ("hub/build/espidi_hub.bin", 0x40000)):
+              size = os.path.getsize(path)
+              print(f"{path}: {size} bytes of {limit} ({100 * size // limit}%)")
+              assert size <= limit, f"{path} does not fit"
+          EOF
+
+      - name: Collect
+        run: |
+          mkdir dist
+          cp hub/build/bootloader/bootloader.bin hub/build/espidi_hub.bin dist/
+          cp hub/build/partition_table/partition-table.bin dist/
+          cp tools/espidi_hub.py dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: espidi-hub
+          path: dist/
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+
+  sdk:
+    name: SDK template (Arduino)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+
+      - name: ESP32 core and libraries
+        run: |
+          arduino-cli core update-index --additional-urls "$ARDUINO_ESP32_URL"
+          arduino-cli core install esp32:esp32 --additional-urls "$ARDUINO_ESP32_URL"
+          arduino-cli lib install "Adafruit SSD1306" "Adafruit GFX Library"
+
+      - name: Build the template
+        run: |
+          arduino-cli compile --fqbn esp32:esp32:esp32c3 --warnings all \
+            --library sdk/ESPidiHub --output-dir out templates/arduino-firmware/ESPidiTemplate
+
+      - name: Fits a slot and carries a descriptor
+        run: python3 tools/espidi_hub.py check --require-descriptor out/ESPidiTemplate.ino.bin
