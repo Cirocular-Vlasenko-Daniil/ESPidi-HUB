@@ -80,7 +80,7 @@ static void message(const char *l1, const char *l2, uint32_t ms)
 
 static void slot_title(int i, char *buf, size_t n)
 {
-    snprintf(buf, n, "SLOT %d", i + 1);
+    snprintf(buf, n, "SLOT %c", '1' + i);  // %c: GCC can't bound %d and -Werror stops the build
 }
 
 // Start screen: the cover on the left, the name (up to two lines of 10 characters) and the
@@ -202,7 +202,7 @@ static void draw_menu(int sel)
 {
     char line[32];
     oled_clear();
-    snprintf(line, sizeof(line), "ESPIDI HUB %s", esp_app_get_description()->version);
+    snprintf(line, sizeof(line), "ESPIDI HUB %.10s", esp_app_get_description()->version);  // 21 chars = screen width
     oled_text(0, 0, line, 1, true);
     for (int i = 0; i < HUB_SLOTS; i++) {
         snprintf(line, sizeof(line), "%c%d %-5s%.12s", sel == i ? '>' : ' ', i + 1, SLOT_BUTTON[i],
