@@ -1,11 +1,14 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-design="oled">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ESPidi HUB Composer</title>
 <meta name="description" content="Put two firmwares on an ESPidi board and write them over USB from the browser.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0f10'/%3E%3Crect x='3' y='4' width='4' height='8' fill='%235fd4c4'/%3E%3Crect x='9' y='4' width='4' height='8' fill='%23f2b25c'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect width='16' height='16' fill='%23000'/%3E%3Crect x='2' y='5' width='5' height='6' fill='%23fff'/%3E%3Crect x='9' y='5' width='5' height='6' fill='none' stroke='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tiny5&family=Handjet:wght@400;600&family=Pixelify+Sans:wght@400;600&family=DotGothic16&family=Press+Start+2P&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -62,6 +65,7 @@
   <a href="https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/blob/main/web/catalog/catalog.json" data-i18n="footer_catalog">Add yours to the catalog</a>
   <a href="https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB" data-i18n="footer_source">Source</a>
   <span class="muted">ESPidi hardware: <a href="https://github.com/EugeneCarlo/ESPidi">Eugene Carlo</a></span>
+  <nav class="designs" id="designs" aria-label="Design"></nav>
 </footer>
 
 <script type="module" src="app.js"></script>

@@ -34,7 +34,7 @@ Humans: the same content with explanations is in [docs/FIRMWARE_GUIDE.md](docs/F
 |---|---|
 | `espidi::pin::PLAY` | GPIO1 |
 | `espidi::pin::TAP` | GPIO2 (strapping) |
-| `espidi::pin::LR` | GPIO3 |
+| `espidi::pin::PAGE` | GPIO3 (labelled L/R on the board) |
 | `espidi::pin::ENC_SW` | GPIO4 |
 | `espidi::pin::ENC_B` / `ENC_A` | GPIO5 / GPIO6 |
 | `espidi::pin::MIDI_RX` / `MIDI_TX` | GPIO7 / GPIO10 — UART1, `espidi::MIDI_BAUD` = 31250, 8N1 |

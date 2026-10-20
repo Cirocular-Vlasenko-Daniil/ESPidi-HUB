@@ -4,8 +4,9 @@ import { GLYPHS } from "./font.js";
 import { t, setLang, getLang, detectLang, saveLang } from "./i18n.js";
 import { Device, webSerialSupported } from "./flasher.js";
 
-const BUTTON = ["PLAY", "L/R"];
+const BUTTON = ["PLAY", "PAGE"];
 const HUB_VERSION = "0.1.0";
+const DESIGNS = ["oled", "matrix", "dither", "freeze"];
 
 const state = {
   catalog: [],
@@ -87,20 +88,22 @@ function drawText(ctx, x, y, s, scale = 1) {
   }
 }
 
+const cssVar = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+
 function renderLogo() {
   const cv = $("#logo");
   const ctx = cv.getContext("2d");
   ctx.clearRect(0, 0, cv.width, cv.height);
-  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--text").trim() || "#fff";
+  ctx.fillStyle = cssVar("--fg", "#fff");
   drawText(ctx, 1, 0, "ESPIDI HUB", 2);
 }
 
 // Same lines as draw_menu() in hub/main/main.c.
 function renderOled() {
   const ctx = $("#oled").getContext("2d");
-  ctx.fillStyle = "#040506";
+  ctx.fillStyle = cssVar("--oled-bg", "#000");
   ctx.fillRect(0, 0, 128, 32);
-  ctx.fillStyle = "#e3f6ff";
+  ctx.fillStyle = cssVar("--oled-fg", "#fff");
   drawText(ctx, 0, 0, `ESPIDI HUB ${state.hub?.version || HUB_VERSION}`);
   for (let i = 0; i < 2; i++) {
     const name = shownName(i) || "---";
@@ -198,7 +201,7 @@ function renderMap() {
     ["hub", E.HUB_SIZE, t("seg_hub")],
     ["s1", layout.slot[0], `PLAY ${fmt(layout.slot[0])}`],
     [fits ? "free" : "over", Math.max(layout.free(), fits ? 0 : 0x10000), fits ? `${t("seg_free")} ${fmt(layout.free())}` : "!"],
-    ["s2", layout.slot[1], `L/R ${fmt(layout.slot[1])}`],
+    ["s2", layout.slot[1], `PAGE ${fmt(layout.slot[1])}`],
     ["files", E.FS_SIZE, t("seg_files")],
   ];
   // Segments under ~4% of the flash get no label, only a tooltip.
@@ -262,8 +265,45 @@ function renderWrite() {
   hint.innerHTML = `${esc(t("download_hint"))}<br><code>esptool --chip esp32c3 write_flash 0x0 espidi-custom.bin</code>`;
 }
 
+// ---------------------------------------------------------------------------
+// Designs: ?design=oled|matrix|dither|freeze, remembered per browser
+// ---------------------------------------------------------------------------
+function pickDesign() {
+  const fromUrl = new URLSearchParams(location.search).get("design");
+  if (DESIGNS.includes(fromUrl)) return fromUrl;
+  try {
+    const saved = localStorage.getItem("espidi-design");
+    if (DESIGNS.includes(saved)) return saved;
+  } catch {
+    // storage may be blocked
+  }
+  return DESIGNS[0];
+}
+
+function setDesign(d) {
+  document.documentElement.dataset.design = d;
+  try {
+    localStorage.setItem("espidi-design", d);
+  } catch {
+    // ignore
+  }
+  const url = new URL(location.href);
+  url.searchParams.set("design", d);
+  history.replaceState(null, "", url);
+  renderLogo();
+  renderDesigns();
+  renderOled();
+}
+
+function renderDesigns() {
+  const current = document.documentElement.dataset.design;
+  $("#designs").innerHTML = `<span>${esc(t("design"))}</span>` + DESIGNS.map((d) =>
+    `<a href="?design=${d}" data-design="${d}" aria-current="${d === current}">${d}</a>`).join("");
+}
+
 function render() {
   document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  renderDesigns();
   document.querySelectorAll(".lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === getLang())));
   renderNotices();
   renderSlot(0);
@@ -491,10 +531,16 @@ document.querySelectorAll(".lang button").forEach((b) => b.addEventListener("cli
   render();
 }));
 
-window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", renderLogo);
+document.querySelector("#designs").addEventListener("click", (e) => {
+  const d = e.target.closest("[data-design]")?.dataset.design;
+  if (!d) return;
+  e.preventDefault();
+  setDesign(d);
+});
 
 // ---------------------------------------------------------------------------
 setLang(detectLang());
+document.documentElement.dataset.design = pickDesign();
 renderLogo();
 render();
 await Promise.all([loadCatalog(), loadHub()]);

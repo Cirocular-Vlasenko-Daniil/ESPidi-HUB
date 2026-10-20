@@ -4,7 +4,7 @@ ESPidi HUB keeps two firmwares on one ESPidi board and starts one of them at pow
 
 ## What your firmware gets
 
-- A **slot**: PLAY starts slot 1, L/R starts slot 2, or the HUB starts the one used last time.
+- A **slot**: PLAY starts slot 1, PAGE starts slot 2, or the HUB starts the one used last time.
 - **Settings**: the shared NVS (16 KB), in your own namespace.
 - **Files**: the shared 1 MB LittleFS, in your own folder.
 - **Space**: up to 2.62 MB of code when the other slot is empty; otherwise whatever is left next to it. You don't pick a size — the installer does.
@@ -50,7 +50,7 @@ ESPIDI_FIRMWARE("myarp", "MY ARP", "1.0.0", "Your Name");
 |---|---|---|
 | PLAY | 1 | button, `INPUT_PULLUP`, active LOW |
 | TAP | 2 | button; strapping pin — must not be LOW at reset |
-| L/R | 3 | button ("PAGE" in RED SEA) |
+| PAGE | 3 | button, labelled L/R on the board |
 | Encoder button | 4 | |
 | Encoder B / A | 5 / 6 | `INPUT_PULLUP` |
 | MIDI RX / TX | 7 / 10 | UART, 31250 baud, 8N1 |

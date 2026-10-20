@@ -19,7 +19,7 @@ constexpr const char *SDK_VERSION = "0.1.0";
 namespace pin {
 constexpr uint8_t PLAY = 1;
 constexpr uint8_t TAP = 2;       // strapping pin: the chip may not boot if it is LOW at reset
-constexpr uint8_t LR = 3;        // "L/R" on the board, "PAGE" in some firmwares
+constexpr uint8_t PAGE = 3;      // labelled "L/R" on the board
 constexpr uint8_t ENC_SW = 4;
 constexpr uint8_t ENC_B = 5;
 constexpr uint8_t ENC_A = 6;

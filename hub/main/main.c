@@ -1,7 +1,7 @@
 // ESPidi HUB — runs on every power-on and starts one of the two firmware slots.
 //
 //   PLAY held during the splash  -> slot 1
-//   L/R held during the splash   -> slot 2
+//   PAGE held during the splash  -> slot 2 (the button labelled L/R on the board)
 //   encoder button               -> menu
 //   nothing                      -> the firmware started last time
 //
@@ -28,7 +28,7 @@
 
 static hub_slot_t slot[HUB_SLOTS];
 static bool nvs_ok;
-static const char *SLOT_BUTTON[HUB_SLOTS] = {"PLAY", "L/R"};
+static const char *SLOT_BUTTON[HUB_SLOTS] = {"PLAY", "PAGE"};
 
 static uint32_t now_ms(void)
 {
@@ -120,7 +120,7 @@ static int splash(void)
     for (;;) {
         input_poll();
         if (input_held(BTN_PLAY)) return 0;
-        if (input_held(BTN_LR)) return 1;
+        if (input_held(BTN_PAGE)) return 1;
         if (input_held(BTN_ENC)) return CHOICE_MENU;
         uint32_t t = now_ms() - t0;
         if (t >= SPLASH_MS) return CHOICE_NONE;
@@ -131,7 +131,7 @@ static int splash(void)
             oled_text_center(1, "ESPIDI HUB", 2, true);
             oled_rect(4, 17, 120, 5, true);
             oled_fill_rect(6, 19, (int)(116 * t / SPLASH_MS), 1, true);
-            oled_text_center(25, "PLAY=1 L/R=2 ENC=MENU", 1, true);
+            oled_text_center(25, "PLAY  PAGE  ENC=MENU", 1, true);
             oled_flush();
         }
         vTaskDelay(1);
@@ -159,7 +159,7 @@ static void __attribute__((noreturn)) menu(int sel)
 {
     input_encoder();
     input_pressed(BTN_PLAY);
-    input_pressed(BTN_LR);
+    input_pressed(BTN_PAGE);
     input_pressed(BTN_ENC);
     bool dirty = true;
     for (;;) {
@@ -170,7 +170,7 @@ static void __attribute__((noreturn)) menu(int sel)
             dirty = true;
         }
         if (input_pressed(BTN_PLAY)) { try_launch(0); dirty = true; }
-        if (input_pressed(BTN_LR)) { try_launch(1); dirty = true; }
+        if (input_pressed(BTN_PAGE)) { try_launch(1); dirty = true; }
         if (input_pressed(BTN_ENC)) { try_launch(sel); dirty = true; }
         if (dirty) {
             draw_menu(sel);

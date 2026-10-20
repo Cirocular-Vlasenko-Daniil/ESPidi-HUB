@@ -2,7 +2,7 @@
 #pragma once
 #include <stdbool.h>
 
-typedef enum { BTN_PLAY, BTN_TAP, BTN_LR, BTN_ENC, BTN_COUNT } hub_button_t;
+typedef enum { BTN_PLAY, BTN_TAP, BTN_PAGE, BTN_ENC, BTN_COUNT } hub_button_t;
 
 void input_init(void);
 void input_poll(void);

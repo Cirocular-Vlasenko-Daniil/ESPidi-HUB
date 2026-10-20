@@ -21,7 +21,7 @@ power-on ─► ROM ─► ESPidi bootloader ─┬─ power-on / brown-out ─�
                                       └─ any other reset ─► otadata slot ──► firmware
                                                              (image invalid ─► HUB)
 HUB: splash ─┬─ PLAY held ─► slot 1 ┐
-             ├─ L/R held  ─► slot 2 ├─► esp_ota_set_boot_partition() + esp_restart()
+             ├─ PAGE held ─► slot 2 ├─► esp_ota_set_boot_partition() + esp_restart()
              ├─ nothing   ─► last   ┘         (otadata written only when it changes)
              └─ ENC held  ─► menu
 ```

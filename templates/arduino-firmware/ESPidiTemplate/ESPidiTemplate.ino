@@ -25,7 +25,7 @@ void sendNote(uint8_t note, uint8_t vel) {
 }
 
 void setup() {
-  for (uint8_t p : {pin::PLAY, pin::TAP, pin::LR, pin::ENC_SW, pin::ENC_A, pin::ENC_B}) pinMode(p, INPUT_PULLUP);
+  for (uint8_t p : {pin::PLAY, pin::TAP, pin::PAGE, pin::ENC_SW, pin::ENC_A, pin::ENC_B}) pinMode(p, INPUT_PULLUP);
 
   Wire.begin(pin::OLED_SDA, pin::OLED_SCL);
   display.begin(SSD1306_SWITCHCAPVCC, espidi::OLED_ADDR);
@@ -71,8 +71,8 @@ void loop() {
   display.setCursor(0, 8);
   display.printf("boots %lu  files %s", (unsigned long)bootCount, filesOk ? "ok" : "--");
   display.setCursor(0, 16);
-  display.printf("PLAY%c TAP%c L/R%c ENC%c", play ? '*' : '.', digitalRead(pin::TAP) ? '.' : '*',
-                 digitalRead(pin::LR) ? '.' : '*', digitalRead(pin::ENC_SW) ? '.' : '*');
+  display.printf("PLAY%c TAP%c PAGE%c ENC%c", play ? '*' : '.', digitalRead(pin::TAP) ? '.' : '*',
+                 digitalRead(pin::PAGE) ? '.' : '*', digitalRead(pin::ENC_SW) ? '.' : '*');
   display.setCursor(0, 24);
   display.print("hold ENC 2s: HUB");
   display.display();

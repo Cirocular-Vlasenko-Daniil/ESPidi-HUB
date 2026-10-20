@@ -11,7 +11,7 @@ ESPidi HUB is a small bootloader + launcher for the ESP32-C3 Super Mini based ES
 | Hold | Starts |
 |---|---|
 | PLAY | slot 1 |
-| L/R | slot 2 |
+| PAGE | slot 2 |
 | nothing | the firmware used last time |
 | encoder button | the HUB menu (installed firmwares, free space) |
 

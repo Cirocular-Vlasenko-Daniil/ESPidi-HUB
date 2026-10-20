@@ -2,7 +2,7 @@
 const STRINGS = {
   en: {
     title: "Firmware composer",
-    subtitle: "Two firmwares on one ESPidi. Hold PLAY or L/R at power-on to pick one.",
+    subtitle: "Two firmwares on one ESPidi. Hold PLAY or PAGE at power-on to pick one.",
     slot: "Slot {n}",
     src_catalog: "Catalog",
     src_file: "My file",
@@ -26,7 +26,7 @@ const STRINGS = {
     seg_hub: "HUB",
     seg_free: "free",
     seg_files: "FILES",
-    legend: "Free {free}. Up to {m1} for PLAY, {m2} for L/R.",
+    legend: "Free {free}. Up to {m1} for PLAY, {m2} for PAGE.",
     overflow: "Doesn't fit: the two firmwares need {need}, there is {area}.",
     preview_title: "On the screen",
     preview_hint: "The HUB menu — hold the encoder button at power-on.",
@@ -57,10 +57,11 @@ const STRINGS = {
     footer_guide: "Writing firmwares",
     footer_catalog: "Add yours to the catalog",
     footer_source: "Source",
+    design: "Design:",
   },
   ru: {
     title: "Сборщик прошивки",
-    subtitle: "Две прошивки на одной ESPidi. При включении зажмите PLAY или L/R, чтобы выбрать.",
+    subtitle: "Две прошивки на одной ESPidi. При включении зажмите PLAY или PAGE, чтобы выбрать.",
     slot: "Слот {n}",
     src_catalog: "Каталог",
     src_file: "Свой файл",
@@ -84,7 +85,7 @@ const STRINGS = {
     seg_hub: "HUB",
     seg_free: "свободно",
     seg_files: "ФАЙЛЫ",
-    legend: "Свободно {free}. Для PLAY — до {m1}, для L/R — до {m2}.",
+    legend: "Свободно {free}. Для PLAY — до {m1}, для PAGE — до {m2}.",
     overflow: "Не помещается: двум прошивкам нужно {need}, а есть {area}.",
     preview_title: "На экране",
     preview_hint: "Меню HUB — кнопка энкодера при включении.",
@@ -115,6 +116,7 @@ const STRINGS = {
     footer_guide: "Как писать прошивки",
     footer_catalog: "Добавить свою в каталог",
     footer_source: "Исходники",
+    design: "Дизайн:",
   },
 };
 
