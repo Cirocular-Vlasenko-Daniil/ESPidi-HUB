@@ -65,7 +65,8 @@ const ICON = {
     "AAAAAAAAAA==",
 };
 
-function picture() {
+// The board, BOARD_W x BOARD_H bytes row by row, 1 = lit (also for tools/make_og_image.py).
+export function boardPixels() {
   const px = new Uint8Array(BOARD_W * BOARD_H);
   const set = (x, y, v = 1) => {
     x = Math.round(x); y = Math.round(y);
@@ -188,6 +189,6 @@ function picture() {
 export function paintBoard(cv, fg, bg) {
   const ctx = cv.getContext("2d");
   const img = ctx.createImageData(BOARD_W, BOARD_H);
-  picture().forEach((on, i) => img.data.set(on ? fg : bg, i * 4));
+  boardPixels().forEach((on, i) => img.data.set(on ? fg : bg, i * 4));
   ctx.putImageData(img, 0, 0);
 }
