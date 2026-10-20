@@ -37,7 +37,7 @@ export class Device {
     return this.chip;
   }
 
-  // { hub: false } or { hub: true, layout, meta } — same reading as tools/espidi_hub.py read_state().
+  // { hub: false } or { hub: true, layout, meta, covers } — same reading as tools/espidi_hub.py read_state().
   async readState() {
     const pt = await this.loader.readFlash(E.PT_OFFSET, E.PT_MAX);
     let layout = null;
@@ -47,11 +47,13 @@ export class Device {
       layout = null;
     }
     if (!layout) return { hub: false };
-    const meta = E.unpackMeta(await this.loader.readFlash(E.META_OFFSET, E.META_SIZE));
+    const sector = await this.loader.readFlash(E.META_OFFSET, E.META_SIZE);
+    const meta = E.unpackMeta(sector);
+    const covers = E.unpackCovers(sector);
     meta.forEach((m, i) => {
       if (!m.imageSize && layout.slot[i] === E.PLACEHOLDER) layout.slot[i] = 0;  // placeholder of an empty slot
     });
-    return { hub: true, layout, meta };
+    return { hub: true, layout, meta, covers };
   }
 
   // Images first, then the partition table and slot info — as two separate writes.
