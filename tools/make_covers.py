@@ -121,7 +121,7 @@ def main():
     # RED SEA's covers live in the catalog until its repository has an espidi.json; the
     # template is an ESPidi-ready repository, so its cover.png is the source and cover.h follows it.
     covers = {os.path.join(catalog, "redsea.cover.png"): red_sea(),
-              os.path.join(catalog, "redsea-beta.cover.png"): red_sea(beta=True),
+              os.path.join(catalog, "redsea-1.1-beta.cover.png"): red_sea(beta=True),
               os.path.join(template_repo, "cover.png"): template()}
     for path, bits in covers.items():
         write_png(path, bits)

@@ -106,7 +106,7 @@ def main() -> None:
                  {"firmware": 1, "cover": 2, "summary": 3, "sketch": 4, "author": 5}]
     v["manifests"] = [{"manifest": m, "codes": hub.check_manifest(m)} for m in manifests]
 
-    covers = [hub.load_cover(os.path.join(ROOT, "web", "catalog", "redsea-beta.cover.png")), hub.inspect_image(s2).cover]
+    covers = [hub.load_cover(os.path.join(ROOT, "web", "catalog", "redsea-1.1-beta.cover.png")), hub.inspect_image(s2).cover]
     image = hub.build_image(lcg(20000, 2), lcg(150000, 3), [s1, s2], mm, covers)
     v["merged"] = {"bootloader": [20000, 2], "hub": [150000, 3], "slots": ["redsea-1.1-beta.bin", "template-0.1.0.bin"],
                    "metas": [m.__dict__ for m in mm], "covers": [c.hex() for c in covers],
