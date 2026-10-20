@@ -73,7 +73,7 @@ The HUB and the bootloader are built by GitHub Actions with ESP-IDF v5.5; tagged
 
 ## Status
 
-Early version, not yet tested on hardware. The splash screen is a placeholder.
+Version 0.1.0, tested on an ESPidi (ESP32-C3, 4 MB): slot choice at power-on, the menu, covers, return to the HUB, refusal of a broken slot, and writing from the composer site (update and full install). The splash screen is a placeholder.
 
 ## License
 

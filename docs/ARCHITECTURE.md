@@ -134,7 +134,7 @@ Optional, put into a firmware by `ESPIDI_COVER(...)` from the SDK (`tools/espidi
 
 - Bootloader built with ESP-IDF v5.5 — the same IDF as Arduino-ESP32 3.3, so its app images boot as they are.
 - The installer rejects images whose chip id is not ESP32-C3 and merged images (bootloader + table + app).
-- The bootloader uses DIO, which every ESP32-C3 flash supports. Arduino builds default to QIO; this should not matter (an ESP-IDF app sets up its own flash driver), but it is one of the things to confirm on hardware.
+- The bootloader uses DIO, which every ESP32-C3 flash supports. Arduino builds default to QIO; this does not matter (an ESP-IDF app sets up its own flash driver) — confirmed on hardware with Arduino firmwares in both slots.
 
 ## Web composer (`web/`)
 
