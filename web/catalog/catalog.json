@@ -38,6 +38,24 @@
       "commit": "203dff3983d6146471b862823774be83d6c3e920"
     },
     {
+      "id": "trajectories",
+      "name": "Trajectories",
+      "version": "0.1 beta",
+      "channel": "beta",
+      "author": "Daniil Vlasenko",
+      "summary": {
+        "en": "Modular slot sequencer: four slots, 20 modules, chained through ARM, one Scale Engine over everything, modulation bound to CC.",
+        "ru": "Модульный слотовый секвенсер: четыре слота, 20 модулей, цепочки через ARM, общий Scale Engine, модуляция по CC."
+      },
+      "source": "Cirocular-Vlasenko-Daniil/Trajectories@main",
+      "file": "trajectories-0.1-beta.bin",
+      "cover": "trajectories-0.1-beta.cover.png",
+      "repo": "https://github.com/Cirocular-Vlasenko-Daniil/Trajectories",
+      "size": 436560,
+      "sha256": "39491b10f8adb6ee58d3b01b71de9953894f0ad25a8c6e0e80d5c2fc1737dbe2",
+      "commit": "c9957d9c6bf4b3fbbabd508a522638e25d6ca622"
+    },
+    {
       "id": "template",
       "name": "TEMPLATE",
       "version": "0.1.0",
