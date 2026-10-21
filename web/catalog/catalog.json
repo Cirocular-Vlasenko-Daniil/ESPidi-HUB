@@ -40,20 +40,20 @@
     {
       "id": "trajectories",
       "name": "Trajectories",
-      "version": "0.2 beta",
+      "version": "0.3 beta",
       "channel": "beta",
       "author": "Daniil Vlasenko",
       "summary": {
-        "en": "Modular slot sequencer: four slots, 20 modules, chained through ARM, one Scale Engine over everything, modulation bound to CC.",
-        "ru": "Модульный слотовый секвенсер: четыре слота, 20 модулей, цепочки через ARM, общий Scale Engine, модуляция по CC."
+        "en": "Modular slot sequencer: four slots, 19 modules, chained through ARM, one Scale Engine over everything, modulation routed slot to parameter.",
+        "ru": "Модульный слотовый секвенсер: четыре слота, 19 модулей, цепочки через ARM, общий Scale Engine, модуляция от слота к параметру."
       },
       "source": "Cirocular-Vlasenko-Daniil/Trajectories@main",
-      "file": "trajectories-0.2-beta.bin",
-      "cover": "trajectories-0.2-beta.cover.png",
+      "file": "trajectories-0.3-beta.bin",
+      "cover": "trajectories-0.3-beta.cover.png",
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/Trajectories",
-      "size": 436624,
-      "sha256": "1bc28a5ed864dda011491a90f7a083bfa8b1898f0e585f43223681234ea3ef96",
-      "commit": "7dc3ecf4fd1713089a796971a9e4e39132db9ef6"
+      "size": 434480,
+      "sha256": "a37ce02b2ce2071d4b1774bbc95c56967f25b59c4c91fa3e3a2a0e3bad0b7223",
+      "commit": "481da91ff70f72444d56a97f31a5e4c604d590e5"
     },
     {
       "id": "template",
@@ -71,7 +71,7 @@
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/tree/main/templates/arduino-firmware",
       "size": 397744,
       "sha256": "0d702c4c61742ac90283df08fbbbe32da0beb59fe04dd077b0bf706b85d1b8b1",
-      "commit": "0ef602278a045cb053696a5664757b4c8f742fd8"
+      "commit": "cc339af5888f574de1eefec79d965eb57c540f78"
     }
   ]
 }
