@@ -56,6 +56,24 @@
       "commit": "481da91ff70f72444d56a97f31a5e4c604d590e5"
     },
     {
+      "id": "maze",
+      "name": "MAZE",
+      "version": "0.2.1",
+      "channel": "beta",
+      "author": "Daniil Vlasenko",
+      "source": "Cirocular-Vlasenko-Daniil/MAZE@main",
+      "file": "maze-0.2.1.bin",
+      "cover": "maze-0.2.1.cover.png",
+      "repo": "https://github.com/Cirocular-Vlasenko-Daniil/MAZE",
+      "summary": {
+        "en": "Esoteric tile sequencer: draw up to four routes across a 4×8 map, pointers walk them and play the notes in the tiles; tiles carry effects that ratchet, transpose, rotate and shift the map.",
+        "ru": "Эзотерический тайловый секвенсер: рисуешь до четырёх маршрутов по карте 4×8, указатели ходят по ним и играют ноты из тайлов; эффекты тайлов дают ретчеты, транспонируют, поворачивают и сдвигают карту."
+      },
+      "commit": "7132266b1bad1aebf02692d14017b930d0037b2d",
+      "size": 421728,
+      "sha256": "912da90a9ea187b7e2768a07fe29a13cc9727fced5c63e5a800ccb68aea259b6"
+    },
+    {
       "id": "template",
       "name": "TEMPLATE",
       "version": "0.1.0",
