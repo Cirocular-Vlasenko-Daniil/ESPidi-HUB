@@ -76,7 +76,7 @@
     {
       "id": "template",
       "name": "TEMPLATE",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "channel": "example",
       "author": "Your Name",
       "summary": {
@@ -84,12 +84,12 @@
         "ru": "Пример SDK: кнопки, MIDI-выход, настройки, файлы, долгое нажатие энкодера — назад в HUB."
       },
       "source": "Cirocular-Vlasenko-Daniil/ESPidi-HUB/templates/arduino-firmware@main",
-      "file": "template-0.1.0.bin",
-      "cover": "template-0.1.0.cover.png",
+      "file": "template-0.1.1.bin",
+      "cover": "template-0.1.1.cover.png",
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/tree/main/templates/arduino-firmware",
-      "size": 397744,
-      "sha256": "0d702c4c61742ac90283df08fbbbe32da0beb59fe04dd077b0bf706b85d1b8b1",
-      "commit": "cc339af5888f574de1eefec79d965eb57c540f78"
+      "size": 397792,
+      "sha256": "5bb46fd22dd42560ca00ae7443d84f9a50ae68d728f444ac3a38a458a4807c35",
+      "commit": "af2127e1dfe43eeea2532f231e2e9b2ba258e3a3"
     }
   ]
 }
