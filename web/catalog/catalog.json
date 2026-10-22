@@ -21,7 +21,7 @@
     {
       "id": "redsea",
       "name": "RED SEA",
-      "version": "1.1 beta",
+      "version": "1.1 beta 2",
       "channel": "beta",
       "author": "Daniil Vlasenko",
       "summary": {
@@ -29,13 +29,13 @@
         "ru": "1.0 плюс MIDI-каналы на каждый параметр, длина нот, Freeze Roll, свинг и движок TWST. В тестировании."
       },
       "source": "Cirocular-Vlasenko-Daniil/Red-Sea@beta",
-      "file": "redsea-1.1-beta.bin",
-      "cover": "redsea-1.1-beta.cover.png",
+      "file": "redsea-1.1-beta-2.bin",
+      "cover": "redsea-1.1-beta-2.cover.png",
       "screen": "redsea.png",
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/Red-Sea/tree/beta",
-      "size": 442096,
-      "sha256": "768a16d1b4f0bdaf959ed0ea55166a13f4c1a00004a7039c7b0c59189e26ae06",
-      "commit": "203dff3983d6146471b862823774be83d6c3e920"
+      "size": 442112,
+      "sha256": "f0062ad198001cc6719bbaf6c2ebf88017fd4eaf015f3dbeac9ae831b989ae54",
+      "commit": "952916f0cb9f94c187c642e089b7ce1330ee98df"
     },
     {
       "id": "trajectories",
@@ -89,7 +89,7 @@
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/tree/main/templates/arduino-firmware",
       "size": 397792,
       "sha256": "5bb46fd22dd42560ca00ae7443d84f9a50ae68d728f444ac3a38a458a4807c35",
-      "commit": "af2127e1dfe43eeea2532f231e2e9b2ba258e3a3"
+      "commit": "93a1bcd4e25659aff6e4dc2f90d0a0c25244abde"
     }
   ]
 }
