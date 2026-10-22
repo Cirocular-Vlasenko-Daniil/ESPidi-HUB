@@ -89,25 +89,25 @@
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/tree/main/templates/arduino-firmware",
       "size": 397792,
       "sha256": "5bb46fd22dd42560ca00ae7443d84f9a50ae68d728f444ac3a38a458a4807c35",
-      "commit": "73d2c66bb988f4d230ed1d7d25f4bcf8c86bbd68"
+      "commit": "07070632a1238b881a4c7aa835e62c3b87f60b3c"
     },
     {
       "id": "espidi_ex",
       "name": "ESPIDI",
-      "version": "1.0 hub",
+      "version": "2 rebuilt hub",
       "channel": "beta",
-      "author": "Eugene Carlo",
+      "author": "E. Carlo, R. Mazavin",
       "source": "Cirocular-Vlasenko-Daniil/ESPidi/Firmware@hub",
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/ESPidi/tree/hub/Firmware",
-      "file": "espidi_ex-1.0-hub.bin",
+      "file": "espidi_ex-2-rebuilt-hub.bin",
       "summary": {
-        "en": "Eugene Carlo's example firmware: arpeggiator, melodic and song sequencers, MIDI monitor, MIDI clock and Start/Stop. Settings → HUB returns to the HUB.",
-        "ru": "Пример прошивки Евгения Карло: арпеджиатор, мелодический и песенный секвенсоры, MIDI-монитор, MIDI-клок и Start/Stop. Settings → HUB — назад в HUB."
+        "en": "Eugene Carlo's ESPidi_2 firmware with Ruslan Mazavin's fixes (ESPidi-rebuilt): arpeggiator, melodic and song sequencers, MIDI monitor, steady MIDI clock. Settings → HUB returns to the HUB.",
+        "ru": "Прошивка ESPidi_2 Евгения Карло с исправлениями Руслана Мазавина (ESPidi-rebuilt): арпеджиатор, мелодический и песенный секвенсоры, MIDI-монитор, ровный MIDI-клок. Settings → HUB — назад в HUB."
       },
-      "cover": "espidi_ex-1.0-hub.cover.png",
-      "commit": "891411f25275ebb72d7306ea40a6249ae77bd321",
-      "size": 436368,
-      "sha256": "9b85a917951815bdfa2eee0a1829a5b2f7823dc942242cda2f1f9550467497b6"
+      "cover": "espidi_ex-2-rebuilt-hub.cover.png",
+      "commit": "b04d7e23eec46a91409af736a4ae0009551a9bbd",
+      "size": 444464,
+      "sha256": "b661024842a8543302a83b3fa43249eb7f8ca0e198ce728264fddcda57b5a134"
     }
   ]
 }
