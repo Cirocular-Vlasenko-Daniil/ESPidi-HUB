@@ -77,6 +77,7 @@ def main() -> int:
                 hub.load_cover(os.path.join(DIR, fw["cover"]))
             except (OSError, ValueError) as e:
                 problems.append(f"cover {fw['cover']}: {e}")
+        notes += [f"WARNING {w}" for w in info.warnings]
         failed |= bool(problems)
         status = "; ".join(problems) or ("ok, cover" if fw.get("cover") or info.cover else "ok")
         print(f"{fw['file']}: {hub.fmt_size(len(data))}, {status}" + "".join(f"\n  {n}" for n in notes))

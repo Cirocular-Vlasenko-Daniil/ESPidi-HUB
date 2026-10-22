@@ -8,7 +8,7 @@
 #include <ESPidiHub.h>
 #include "cover.h"   // ESPIDI_COVER(...): the 64x32 picture the HUB shows next to the name
 
-ESPIDI_FIRMWARE("template", "TEMPLATE", "0.1.0", "Your Name");
+ESPIDI_FIRMWARE("template", "TEMPLATE", "0.1.1", "Your Name");
 
 namespace pin = espidi::pin;
 

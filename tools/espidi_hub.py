@@ -421,6 +421,13 @@ IMAGE_MAGIC = 0xE9
 CHIP_ID_ESP32C3 = 0x0005
 APP_DESC_MAGIC = 0xABCD5432
 DESC_MAGIC = b"ESPIDI-FW-1\0"
+# The header's flash mode says nothing: Arduino (and IDF) write DIO there even for a QIO build.
+# The QIO build is in the libraries (esp_flash reads in QIO), and an Arduino image carries the
+# chip report's line for it. Under the HUB's DIO bootloader the quad enable bit is not set, so
+# esp_flash_read / esp_partition_read (NVS, LittleFS) return garbage on some flash chips.
+FLASH_MODES = ("QIO", "QOUT", "DIO", "DOUT")
+QUAD_WARNING = ("built in {mode} flash mode — NVS and LittleFS may read garbage under the HUB; "
+                "build with FlashMode=dio (fqbn esp32:esp32:esp32c3:FlashMode=dio)")
 DESC = struct.Struct("<12s16s24s16s24s")
 
 
@@ -433,7 +440,17 @@ class ImageInfo:
     idf_version: str = ""
     desc: Optional[SlotMeta] = None
     cover: Optional[bytes] = None
+    flash_mode: str = ""
     problems: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+
+
+def image_flash_mode(data: bytes) -> str:
+    """The mode the firmware reads its flash in: the Arduino chip report's line, else the header's."""
+    for mode in FLASH_MODES:
+        if b"\0" + mode.encode() + b"\n\0" in data:
+            return mode
+    return FLASH_MODES[data[2]] if len(data) > 2 and data[2] < len(FLASH_MODES) else ""
 
 
 def inspect_image(data: bytes) -> ImageInfo:
@@ -457,6 +474,9 @@ def inspect_image(data: bytes) -> ImageInfo:
     pos = data.find(FW_COVER_MAGIC)
     if pos >= 0 and pos + len(FW_COVER_MAGIC) + COVER_BYTES <= len(data):
         info.cover = data[pos + len(FW_COVER_MAGIC):pos + len(FW_COVER_MAGIC) + COVER_BYTES]
+    info.flash_mode = image_flash_mode(data)
+    if info.flash_mode in ("QIO", "QOUT"):
+        info.warnings.append(QUAD_WARNING.format(mode=info.flash_mode))
     if align_up(len(data)) > (APP_END - APP_START) - PLACEHOLDER:
         info.problems.append(f"too big: {fmt_size(len(data))}, a slot holds at most "
                              f"{fmt_size((APP_END - APP_START) - PLACEHOLDER)}")
@@ -711,6 +731,7 @@ def check_repo(src, need_firmware: bool = True) -> RepoReport:
         return rep
     rep.info = inspect_image(rep.firmware)
     rep.problems += [f"{m['firmware']}: {p}" for p in rep.info.problems]
+    rep.warnings += [f"{m['firmware']}: {w}" for w in rep.info.warnings]
     d = rep.info.desc
     if not d and not m.get("name"):
         rep.problems.append(f"{m['firmware']} has no ESPIDI_FIRMWARE() and {MANIFEST} has no \"name\"")
@@ -832,6 +853,8 @@ def cmd_check(args) -> int:
         if args.require_descriptor:
             info.problems.append("--require-descriptor: add ESPIDI_FIRMWARE(...) to the sketch")
     print(f"cover:    {'ESPIDI_COVER() inside' if info.cover else 'none (the HUB shows the name only)'}")
+    print(f"flash:    {info.flash_mode or '-'}")
+    info.problems += info.warnings  # a fresh build: fix it before publishing
     for p in info.problems:
         print(f"ERROR:    {p}")
     return 1 if info.problems else 0
@@ -942,7 +965,7 @@ def cmd_repo(args) -> int:
         info = inspect_image(build)
         if not info.desc:
             info.problems.append("no ESPIDI_FIRMWARE() — add it to the sketch")
-        rep.problems += [f"{args.build}: {p}" for p in info.problems]
+        rep.problems += [f"{args.build}: {p}" for p in info.problems + info.warnings]
         if rep.cover and info.cover != rep.cover:
             rep.warnings.append(f"the cover inside {args.build} differs from {m['cover']} — run repo --sync-cover before building")
         if args.publish and not rep.problems:
@@ -1014,6 +1037,8 @@ def cmd_install(args) -> int:
         for p in info.problems:
             print(f"ERROR: {p}")
         return 1
+    for w in info.warnings:
+        print(f"WARNING: {w}")
     own = repo_cover or info.cover
     cover = None if args.no_cover else (load_cover(args.cover, args.invert_cover) if args.cover else own)
     layout, meta, covers = read_state(args)

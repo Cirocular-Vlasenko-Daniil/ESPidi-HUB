@@ -14,7 +14,7 @@ ESPidi HUB хранит две прошивки на одной плате ESPid
 
 ## Быстрый старт (Arduino)
 
-1. Установите ядро ESP32 (Espressif, 3.x) и выберите плату **ESP32C3 Dev Module**.
+1. Установите ядро ESP32 (Espressif, 3.x), выберите плату **ESP32C3 Dev Module** и поставьте **Tools → Flash Mode → DIO** (QIO по умолчанию ломает под HUB настройки и файлы, см. ниже).
 2. Установите SDK: скопируйте `sdk/ESPidiHub` в папку `libraries` Arduino (или передайте `--library sdk/ESPidiHub` в arduino-cli).
 3. Возьмите за основу `templates/arduino-firmware/ESPidiTemplate`.
 4. Добавьте в скетч дескриптор — HUB покажет это имя:
@@ -42,7 +42,7 @@ M-VAVE SMC-PAD Pro может быть контроллером прошивки
 
 **Обязательно**
 
-1. Собирать под ESP32-C3 обычный образ приложения. Ставится файл `<sketch>.ino.bin` — **не** `*.merged.bin` и не файлы загрузчика или таблицы разделов.
+1. Собирать под ESP32-C3 обычный образ приложения в режиме флеша **DIO** (Arduino: `FlashMode=dio`; ESP-IDF: `CONFIG_ESPTOOLPY_FLASHMODE_DIO=y`). Загрузчик HUB оставляет флеш в DIO и не включает у микросхемы бит quad enable, поэтому QIO-сборка работает (код идёт через кэш), но на части микросхем читает мусор из NVS и LittleFS. Ставится файл `<sketch>.ino.bin` — **не** `*.merged.bin` и не файлы загрузчика или таблицы разделов.
 2. Использовать распиновку ESPidi (`espidi::pin::…`).
 3. Хранить настройки в NVS в **своём пространстве имён** (`Preferences prefs; prefs.begin("<id>");`).
 4. Хранить файлы на общем LittleFS в папке **`/<id>/`**, подключая его через `espidi::mountFiles()`.
@@ -114,12 +114,12 @@ if (espidi::mountFiles()) {
 ## Сборка, проверка, установка
 
 ```bash
-arduino-cli compile --fqbn esp32:esp32:esp32c3 --library path/to/ESPidi-HUB/sdk/ESPidiHub --output-dir out MySketch
+arduino-cli compile --fqbn esp32:esp32:esp32c3:FlashMode=dio --library path/to/ESPidi-HUB/sdk/ESPidiHub --output-dir out MySketch
 python3 tools/espidi_hub.py check --require-descriptor out/MySketch.ino.bin
 python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 out/MySketch.ino.bin
 ```
 
-`check` показывает размер, сколько места займёт прошивка, дескриптор, обложку и проблемы (не тот чип, объединённый образ, слишком большой размер). `install` сам рассчитывает слот, записывает прошивку и не трогает второй слот, настройки и файлы.
+`check` показывает размер, сколько места займёт прошивка, дескриптор, обложку и проблемы (не тот чип, объединённый образ, слишком большой размер, сборка в QIO). `install` сам рассчитывает слот, записывает прошивку и не трогает второй слот, настройки и файлы.
 
 Или без терминала: сайт-сборщик принимает ваш `.bin` («Свой файл») и записывает его по USB из Chrome или Edge.
 
@@ -180,7 +180,7 @@ __attribute__((used, retain, aligned(4))) const struct {
 } espidi_firmware_cover = {"ESPIDI-CV-1", { /* 256 байт из espidi_hub.py cover */ }};
 ```
 
-Общая файловая система — data-раздел с меткой `spiffs` (LittleFS); NVS — стандартный раздел `nvs`.
+Собирайте в DIO: `CONFIG_ESPTOOLPY_FLASHMODE_DIO=y` в `sdkconfig.defaults`. Общая файловая система — data-раздел с меткой `spiffs` (LittleFS); NVS — стандартный раздел `nvs`.
 
 ## Перед релизом
 

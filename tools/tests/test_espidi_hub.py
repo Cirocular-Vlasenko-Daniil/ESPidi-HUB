@@ -160,6 +160,19 @@ class ImageTest(unittest.TestCase):
     def test_too_big(self):
         self.assertTrue(hub.inspect_image(fake_image(hub.APP_END - hub.APP_START)).problems)
 
+    def test_flash_mode(self):
+        # The header says DIO (fake_image byte 2); an Arduino QIO build gives itself away in the chip report.
+        info = hub.inspect_image(fake_image(5000))
+        self.assertEqual((info.flash_mode, info.warnings), ("DIO", []))
+        info = hub.inspect_image(fake_image(5000) + b"\0QIO\n\0")
+        self.assertEqual(info.flash_mode, "QIO")
+        self.assertEqual(info.problems, [])
+        self.assertEqual(len(info.warnings), 1)
+        self.assertEqual(hub.inspect_image(fake_image(5000) + b"\0DIO\n\0").flash_mode, "DIO")
+        data = bytearray(fake_image(5000))
+        data[2] = 0
+        self.assertTrue(hub.inspect_image(bytes(data)).warnings)
+
     def test_crc_is_zlib(self):
         data = fake_image(4096)
         self.assertEqual(hub.slot_meta_for(data, hub.inspect_image(data),

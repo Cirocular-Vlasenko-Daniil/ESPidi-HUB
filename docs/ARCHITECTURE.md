@@ -134,7 +134,7 @@ Optional, put into a firmware by `ESPIDI_COVER(...)` from the SDK (`tools/espidi
 
 - Bootloader built with ESP-IDF v5.5 — the same IDF as Arduino-ESP32 3.3, so its app images boot as they are.
 - The installer rejects images whose chip id is not ESP32-C3 and merged images (bootloader + table + app).
-- The bootloader uses DIO, which every ESP32-C3 flash supports. Arduino builds default to QIO; this does not matter (an ESP-IDF app sets up its own flash driver) — confirmed on hardware with Arduino firmwares in both slots.
+- The bootloader uses DIO, which every ESP32-C3 flash supports, and never sets the flash's quad-enable (QE) bit. Firmwares must be built in DIO. A QIO build (the Arduino default for the ESP32-C3) still runs, because code is fetched through the cache the bootloader set up in DIO, but its `esp_flash_read` / `esp_partition_read` use quad reads: with QE clear they return garbage, so NVS and LittleFS break (seen 2026-10-22 on a flash with manufacturer id 0x46). The image header cannot tell: Arduino and IDF write DIO there for QIO builds too. `inspect_image` / `inspectImage` read the mode from the Arduino chip report's line in the image (`\0QIO\n\0`), else from the header; `check` and `repo --build` reject QIO/QOUT, `install`, `repo` and the composer warn.
 
 ## Web composer (`web/`)
 

@@ -15,7 +15,7 @@ Humans: the same content with explanations is in [docs/FIRMWARE_GUIDE.md](docs/F
 
 ### Hard rules — every item is mandatory
 
-1. Target `esp32:esp32:esp32c3` (Arduino-ESP32 3.x) or ESP-IDF v5.x with target `esp32c3`.
+1. Target `esp32:esp32:esp32c3:FlashMode=dio` (Arduino-ESP32 3.x) or ESP-IDF v5.x with target `esp32c3` and `CONFIG_ESPTOOLPY_FLASHMODE_DIO=y`. Never QIO (the Arduino default): under the HUB's DIO bootloader it reads NVS and LittleFS as garbage; `check` rejects it.
 2. Add exactly one descriptor at file scope:
    `ESPIDI_FIRMWARE("<id>", "<NAME>", "<x.y.z>", "<author>");`
    - `id`: lowercase `[a-z0-9_]`, ≤ 15 chars, unique to this firmware. Reserved, never use: `espidihub`, `espidi_pad`, `nimble_bond`.
@@ -57,13 +57,13 @@ Power-on and the RESET button start the HUB. `esp_restart()`, panics, watchdogs 
 ### Verify before you report done
 
 ```bash
-arduino-cli compile --fqbn esp32:esp32:esp32c3 --warnings all \
+arduino-cli compile --fqbn esp32:esp32:esp32c3:FlashMode=dio --warnings all \
   --library <ESPidi-HUB>/sdk/ESPidiHub --output-dir out <SketchFolder>
 python3 <ESPidi-HUB>/tools/espidi_hub.py check --require-descriptor out/<Sketch>.ino.bin
 python3 <ESPidi-HUB>/tools/espidi_hub.py repo <repo-folder> --build out/<Sketch>.ino.bin
 ```
 
-Done means: it compiles without warnings from your code, `check` and `repo` exit 0 (`check` prints `cover: ESPIDI_COVER() inside` if there is a cover), and a search of your sources finds none of the forbidden calls from rule 5. If a sketch exceeds Arduino's 1.25 MB default, compile with `esp32:esp32:esp32c3:PartitionScheme=huge_app` (this lifts only Arduino's check).
+Done means: it compiles without warnings from your code, `check` and `repo` exit 0 (`check` prints `cover: ESPIDI_COVER() inside` if there is a cover), and a search of your sources finds none of the forbidden calls from rule 5. If a sketch exceeds Arduino's 1.25 MB default, compile with `esp32:esp32:esp32c3:PartitionScheme=huge_app,FlashMode=dio` (this lifts only Arduino's check).
 
 If the user can test on hardware, ask them to confirm: both slots start, settings of the other firmware survive, power cycle → HUB, `rebootToHub()` → HUB.
 

@@ -264,6 +264,8 @@ function composition() {
   return { sources, ready, layout, fits: layout.fits() };
 }
 
+const warningsHtml = (info) => info.warnings.map((w) => `<div class="hint">${esc(t(`warn_${w.code}`, w))}</div>`).join("");
+
 function problemText(p) {
   if (p.code === "too_big") return t("err_too_big", { size: fmt(p.size), max: fmt(E.MAX_IMAGE) });
   return t(`err_${p.code}`, p);
@@ -444,6 +446,7 @@ function renderFoot(i) {
     else {
       html = `<div class="what">${esc(fw.name)} ${esc(fw.version)}</div>
         <div class="muted">${esc(t("takes", { size: fmt(data.length), alloc: fmt(E.alignUp(data.length)) }))}</div>`;
+      html += warningsHtml(E.inspectImage(data));
       html += renderCover(i);
       if (fw.screen) html += `<img class="shot" src="catalog/${esc(fw.screen)}" alt="${esc(fw.name)}">`;
     }
@@ -457,6 +460,7 @@ function renderFoot(i) {
         <div class="muted">${esc(t("takes", { size: fmt(r.data.length), alloc: fmt(E.alignUp(r.data.length)) }))}</div>`;
       if (r.coverMissing) html += `<div class="hint">${esc(t("gh_cover_missing", { path: r.manifest.cover }))}</div>`;
       if (r.coverBad) html += `<div class="hint">${esc(t("gh_cover_bad", { path: r.manifest.cover }))}</div>`;
+      html += warningsHtml(r.info);
       html += renderCover(i);
     }
   } else if (s.mode === "file") {
@@ -467,6 +471,7 @@ function renderFoot(i) {
         html = `<div class="what">${esc(s.name || s.file.fileName)} ${esc(s.version)}</div>
           <div class="muted">${esc(t("takes", { size: fmt(s.file.data.length), alloc: fmt(E.alignUp(s.file.data.length)) }))}</div>`;
         if (!s.file.info.desc) html += `<div class="hint">${esc(t("no_desc"))}</div>`;
+        html += warningsHtml(s.file.info);
         html += renderCover(i);
       }
     }

@@ -14,7 +14,7 @@ A firmware that follows the rules below does not need to know about the HUB at a
 
 ## Quick start (Arduino)
 
-1. Install the ESP32 core (Espressif, 3.x) and select **ESP32C3 Dev Module**.
+1. Install the ESP32 core (Espressif, 3.x), select **ESP32C3 Dev Module** and set **Tools → Flash Mode → DIO** (the default QIO breaks settings and files under the HUB, see below).
 2. Install the SDK: copy `sdk/ESPidiHub` to your Arduino `libraries` folder (or pass `--library sdk/ESPidiHub` to arduino-cli).
 3. Start from `templates/arduino-firmware/ESPidiTemplate`.
 4. Put a descriptor in the sketch — the HUB shows its name:
@@ -42,7 +42,7 @@ An M-VAVE SMC-PAD Pro can be a firmware's controller over Bluetooth: pads, encod
 
 **Must**
 
-1. Target the ESP32-C3 and build an ordinary app image. The file to install is `<sketch>.ino.bin`, **not** `*.merged.bin` and not the bootloader or partition files.
+1. Target the ESP32-C3 and build an ordinary app image in **DIO** flash mode (Arduino: `FlashMode=dio`; ESP-IDF: `CONFIG_ESPTOOLPY_FLASHMODE_DIO=y`). The HUB's bootloader leaves the flash in DIO and does not set the chip's quad-enable bit, so a QIO build runs (code comes through the cache) but reads garbage from NVS and LittleFS on some flash chips. The file to install is `<sketch>.ino.bin`, **not** `*.merged.bin` and not the bootloader or partition files.
 2. Use the ESPidi pin map (`espidi::pin::…`).
 3. Keep settings in NVS under **your own namespace** (`Preferences prefs; prefs.begin("<id>");`).
 4. Keep files on the shared LittleFS in **`/<id>/`**, mounted with `espidi::mountFiles()`.
@@ -114,12 +114,12 @@ A good place for "back to the HUB" is a long press (the template uses the encode
 ## Build, check, install
 
 ```bash
-arduino-cli compile --fqbn esp32:esp32:esp32c3 --library path/to/ESPidi-HUB/sdk/ESPidiHub --output-dir out MySketch
+arduino-cli compile --fqbn esp32:esp32:esp32c3:FlashMode=dio --library path/to/ESPidi-HUB/sdk/ESPidiHub --output-dir out MySketch
 python3 tools/espidi_hub.py check --require-descriptor out/MySketch.ino.bin
 python3 tools/espidi_hub.py install -p /dev/cu.usbmodem1101 --slot 2 out/MySketch.ino.bin
 ```
 
-`check` reports the size, the slot space it takes, the descriptor, the cover and any problem (wrong chip, merged image, too big). `install` sizes the slot, writes the firmware and keeps the other slot, all settings and files intact.
+`check` reports the size, the slot space it takes, the descriptor, the cover and any problem (wrong chip, merged image, too big, built in QIO). `install` sizes the slot, writes the firmware and keeps the other slot, all settings and files intact.
 
 Or without a terminal: the composer site takes your `.bin` (“My file”) and writes it over USB from Chrome or Edge.
 
@@ -180,7 +180,7 @@ __attribute__((used, retain, aligned(4))) const struct {
 } espidi_firmware_cover = {"ESPIDI-CV-1", { /* 256 bytes from espidi_hub.py cover */ }};
 ```
 
-The shared file system is the data partition labelled `spiffs` (LittleFS); NVS is the default `nvs` partition.
+Build in DIO: `CONFIG_ESPTOOLPY_FLASHMODE_DIO=y` in `sdkconfig.defaults`. The shared file system is the data partition labelled `spiffs` (LittleFS); NVS is the default `nvs` partition.
 
 ## Before you release
 

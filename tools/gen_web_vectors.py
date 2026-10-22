@@ -59,7 +59,8 @@ def main() -> None:
                             "desc": ({k: getattr(info.desc, k) for k in ("id", "name", "version", "author")}
                                      if info.desc else None),
                             "cover": info.cover.hex() if info.cover else None,
-                            "problems": len(info.problems)})
+                            "problems": len(info.problems),
+                            "flash_mode": info.flash_mode, "warnings": len(info.warnings)})
 
     # Covers: the block format, and pixels_to_cover() on RGBA input the browser gets from a canvas.
     def rgba_rows(w, h, seed):

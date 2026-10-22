@@ -93,6 +93,7 @@ try {
     check(`image ${name}`, {
       chip_id: info.chipId, project: info.project, app_version: info.appVersion, idf_version: info.idfVersion,
       desc: info.desc, cover: info.cover ? E.toHex(info.cover) : null, problems: info.problems.length,
+      flash_mode: info.flashMode, warnings: info.warnings.length,
     }, img);
   }
 

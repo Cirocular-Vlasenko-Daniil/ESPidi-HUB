@@ -326,9 +326,20 @@ function findBytes(hay, needle) {
   return -1;
 }
 
-// Problems are codes; the UI translates them (see i18n.js).
+// The mode the firmware reads its flash in (image_flash_mode in espidi_hub.py): the Arduino
+// chip report's line, else the header's — which says DIO even for a QIO build.
+const FLASH_MODES = ["QIO", "QOUT", "DIO", "DOUT"];
+export function imageFlashMode(data) {
+  for (const mode of FLASH_MODES) {
+    if (findBytes(data, new Uint8Array([0, ...[...mode].map((c) => c.charCodeAt(0)), 10, 0])) >= 0) return mode;
+  }
+  return data.length > 2 && data[2] < FLASH_MODES.length ? FLASH_MODES[data[2]] : "";
+}
+
+// Problems and warnings are codes; the UI translates them (see i18n.js).
 export function inspectImage(data) {
-  const info = { size: data.length, chipId: -1, project: "", appVersion: "", idfVersion: "", desc: null, cover: null, problems: [] };
+  const info = { size: data.length, chipId: -1, project: "", appVersion: "", idfVersion: "", desc: null, cover: null,
+    flashMode: "", problems: [], warnings: [] };
   if (data.length < 0x20 + 144 || data[0] !== 0xE9) {
     info.problems.push({ code: "not_image" });
     return info;
@@ -354,6 +365,8 @@ export function inspectImage(data) {
   if (cv >= 0 && cv + FW_COVER_MAGIC.length + COVER_BYTES <= data.length) {
     info.cover = data.slice(cv + FW_COVER_MAGIC.length, cv + FW_COVER_MAGIC.length + COVER_BYTES);
   }
+  info.flashMode = imageFlashMode(data);
+  if (info.flashMode === "QIO" || info.flashMode === "QOUT") info.warnings.push({ code: "quad", mode: info.flashMode });
   if (alignUp(data.length) > MAX_IMAGE) info.problems.push({ code: "too_big", size: data.length });
   return info;
 }
