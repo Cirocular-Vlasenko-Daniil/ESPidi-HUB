@@ -89,7 +89,25 @@
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/tree/main/templates/arduino-firmware",
       "size": 397792,
       "sha256": "5bb46fd22dd42560ca00ae7443d84f9a50ae68d728f444ac3a38a458a4807c35",
-      "commit": "9b6a7e4aaa003ffb0c08a53d6941a1494ba172d6"
+      "commit": "73d2c66bb988f4d230ed1d7d25f4bcf8c86bbd68"
+    },
+    {
+      "id": "espidi_ex",
+      "name": "ESPIDI",
+      "version": "1.0 hub",
+      "channel": "beta",
+      "author": "Eugene Carlo",
+      "source": "Cirocular-Vlasenko-Daniil/ESPidi/Firmware@hub",
+      "repo": "https://github.com/Cirocular-Vlasenko-Daniil/ESPidi/tree/hub/Firmware",
+      "file": "espidi_ex-1.0-hub.bin",
+      "summary": {
+        "en": "Eugene Carlo's example firmware: arpeggiator, melodic and song sequencers, MIDI monitor, MIDI clock and Start/Stop. Settings → HUB returns to the HUB.",
+        "ru": "Пример прошивки Евгения Карло: арпеджиатор, мелодический и песенный секвенсоры, MIDI-монитор, MIDI-клок и Start/Stop. Settings → HUB — назад в HUB."
+      },
+      "cover": "espidi_ex-1.0-hub.cover.png",
+      "commit": "891411f25275ebb72d7306ea40a6249ae77bd321",
+      "size": 436368,
+      "sha256": "9b85a917951815bdfa2eee0a1829a5b2f7823dc942242cda2f1f9550467497b6"
     }
   ]
 }
