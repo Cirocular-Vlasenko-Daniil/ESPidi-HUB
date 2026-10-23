@@ -116,13 +116,10 @@ def template():
 
 
 def main():
-    catalog = os.path.join(ROOT, "web", "catalog")
     template_repo = os.path.join(ROOT, "templates", "arduino-firmware")
-    # RED SEA 1.0 predates espidi.json, so its cover lives in the catalog (the beta brings its own,
-    # update_catalog.py copies it); the template is an ESPidi-ready repository, so its cover.png
-    # is the source and cover.h follows it.
-    covers = {os.path.join(catalog, "redsea.cover.png"): red_sea(),
-              os.path.join(template_repo, "cover.png"): template()}
+    # RED SEA brings its own cover from its repository (update_catalog.py copies it); the template
+    # is an ESPidi-ready repository, so its cover.png is the source and cover.h follows it.
+    covers = {os.path.join(template_repo, "cover.png"): template()}
     for path, bits in covers.items():
         write_png(path, bits)
         assert hub.load_cover(path) == bits

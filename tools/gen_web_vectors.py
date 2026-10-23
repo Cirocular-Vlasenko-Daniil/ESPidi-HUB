@@ -47,12 +47,13 @@ def main() -> None:
                              "max": [lay.max_size(0), lay.max_size(1)], "free": lay.free(),
                              "table_md5": md5(hub.build_table(lay.partitions()))})
 
-    metas = [hub.SlotMeta("redsea", "RED SEA", "1.1 beta", "Daniil Vlasenko", 431488, 0xB596FDF7),
+    metas = [hub.SlotMeta("redsea", "RED SEA", "1.1", "Daniil Vlasenko", 431488, 0xB596FDF7),
              hub.SlotMeta("x" * 20, "N" * 30, "1.0.0-very-long-version", "", 1, 2)]
     v["meta"].append({"slots": [m.__dict__ for m in metas], "md5": md5(hub.pack_meta(metas))})
     v["meta"].append({"slots": [hub.SlotMeta().__dict__] * 2, "md5": md5(hub.pack_meta([hub.SlotMeta()] * 2))})
 
-    for name in ("redsea-1.0.bin", "redsea-1.1-beta-2.bin", "template-0.1.1.bin"):
+    # legacy-no-sdk.bin — RED SEA 1.0, прошивка без дескриптора ESPidi (не по SDK).
+    for name in ("../testdata/legacy-no-sdk.bin", "redsea-1.1.bin", "template-0.1.1.bin"):
         info = hub.inspect_image(catalog_file(name))
         v["images"].append({"file": name, "chip_id": info.chip_id, "project": info.project,
                             "app_version": info.app_version, "idf_version": info.idf_version,
@@ -79,8 +80,8 @@ def main() -> None:
     cv["meta"] = {"slots": [m.__dict__ for m in with_covers], "covers": [lcg(256, 8).hex(), None],
                   "md5": md5(hub.pack_meta(with_covers, [lcg(256, 8), None]))}
 
-    s1, s2 = catalog_file("redsea-1.1-beta-2.bin"), catalog_file("template-0.1.1.bin")
-    mm = [hub.SlotMeta("redsea", "RED SEA", "1.1 beta", "Daniil Vlasenko", len(s1), zlib.crc32(s1)),
+    s1, s2 = catalog_file("redsea-1.1.bin"), catalog_file("template-0.1.1.bin")
+    mm = [hub.SlotMeta("redsea", "RED SEA", "1.1", "Daniil Vlasenko", len(s1), zlib.crc32(s1)),
           hub.SlotMeta("template", "TEMPLATE", "0.1.1", "ESPidi HUB", len(s2), zlib.crc32(s2))]
     # ESPidi-ready repositories: links and espidi.json checks (web/github.js, validateManifest()).
     specs = ["o/r", "o/r@beta", "Owner-1/my.repo_2/fw/sub@feature/x", "github.com/o/r.git",
@@ -107,9 +108,9 @@ def main() -> None:
                  {"firmware": 1, "cover": 2, "summary": 3, "sketch": 4, "author": 5}]
     v["manifests"] = [{"manifest": m, "codes": hub.check_manifest(m)} for m in manifests]
 
-    covers = [hub.load_cover(os.path.join(ROOT, "web", "catalog", "redsea-1.1-beta-2.cover.png")), hub.inspect_image(s2).cover]
+    covers = [hub.load_cover(os.path.join(ROOT, "web", "catalog", "redsea-1.1.cover.png")), hub.inspect_image(s2).cover]
     image = hub.build_image(lcg(20000, 2), lcg(150000, 3), [s1, s2], mm, covers)
-    v["merged"] = {"bootloader": [20000, 2], "hub": [150000, 3], "slots": ["redsea-1.1-beta-2.bin", "template-0.1.1.bin"],
+    v["merged"] = {"bootloader": [20000, 2], "hub": [150000, 3], "slots": ["redsea-1.1.bin", "template-0.1.1.bin"],
                    "metas": [m.__dict__ for m in mm], "covers": [c.hex() for c in covers],
                    "size": len(image), "md5": md5(image)}
 

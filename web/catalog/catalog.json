@@ -4,38 +4,21 @@
     {
       "id": "redsea",
       "name": "RED SEA",
-      "version": "1.0",
+      "version": "1.1",
       "channel": "stable",
       "author": "Daniil Vlasenko",
       "summary": {
-        "en": "Weather-themed algorithmic MIDI sequencer and CC modulator: FOG, SUN, RAIN and SNOW engines, 16-step sequencer.",
-        "ru": "Алгоритмический MIDI-секвенсор и CC-модулятор на погодных движках FOG, SUN, RAIN и SNOW, 16 шагов."
+        "en": "Weather-driven MIDI CC modulator and sequencer: per-parameter MIDI channels, note length, Freeze Roll, swing and the TWST engine.",
+        "ru": "Погодный MIDI CC-модулятор и секвенсор: MIDI-каналы на каждый параметр, длина нот, Freeze Roll, свинг и движок TWST."
       },
-      "file": "redsea-1.0.bin",
-      "cover": "redsea.cover.png",
+      "source": "Cirocular-Vlasenko-Daniil/Red-Sea@main",
+      "file": "redsea-1.1.bin",
+      "cover": "redsea-1.1.cover.png",
       "screen": "redsea.png",
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/Red-Sea",
-      "size": 419984,
-      "sha256": "f5dace54ab972e25755ec5c1820383c5d9121f7dbf6219cf0f37420be137f89f"
-    },
-    {
-      "id": "redsea",
-      "name": "RED SEA",
-      "version": "1.1 beta 2",
-      "channel": "beta",
-      "author": "Daniil Vlasenko",
-      "summary": {
-        "en": "1.0 plus per-parameter MIDI channels, note length, Freeze Roll, swing and the TWST engine. Under testing.",
-        "ru": "1.0 плюс MIDI-каналы на каждый параметр, длина нот, Freeze Roll, свинг и движок TWST. В тестировании."
-      },
-      "source": "Cirocular-Vlasenko-Daniil/Red-Sea@beta",
-      "file": "redsea-1.1-beta-2.bin",
-      "cover": "redsea-1.1-beta-2.cover.png",
-      "screen": "redsea.png",
-      "repo": "https://github.com/Cirocular-Vlasenko-Daniil/Red-Sea/tree/beta",
       "size": 442112,
-      "sha256": "f0062ad198001cc6719bbaf6c2ebf88017fd4eaf015f3dbeac9ae831b989ae54",
-      "commit": "952916f0cb9f94c187c642e089b7ce1330ee98df"
+      "sha256": "27f21ebdea02f1da337158e51db09b35ac211162a03f4af655ee5dee63581ac4",
+      "commit": "279f682a17115b0d3da31d18f4ccf01d336ac80d"
     },
     {
       "id": "trajectories",
@@ -89,7 +72,7 @@
       "repo": "https://github.com/Cirocular-Vlasenko-Daniil/ESPidi-HUB/tree/main/templates/arduino-firmware",
       "size": 397792,
       "sha256": "5bb46fd22dd42560ca00ae7443d84f9a50ae68d728f444ac3a38a458a4807c35",
-      "commit": "07070632a1238b881a4c7aa835e62c3b87f60b3c"
+      "commit": "0e5cb3370343fa908517590fefd3d76f8c0cab37"
     },
     {
       "id": "espidi_ex",
